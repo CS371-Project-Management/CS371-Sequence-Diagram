@@ -12,15 +12,15 @@ Router -> Middleware: .Use(Middleware)
 activate Middleware
 
 alt Unauthorized (401 Unauthorized)
-    Middleware -->> Router: 401 Unauthorized
-    Router -->> Frontend: 401 Unauthorized
-    Frontend -->> User: Show error "Please log in"
+  Middleware -->> Router: 401 Unauthorized
+  Router -->> Frontend: 401 Unauthorized
+  Frontend -->> User: Show error "Please log idn"
 else Authorized
-    Middleware -->> Router: Proceed
-    deactivate Middleware
-    Router -> Controller: .GetAllCourses()
-    deactivate Middleware
-    activate Controller
+  Middleware -->> Router: Proceed
+  deactivate Middleware
+  Router -> Controller: .GetAllCourses()
+  deactivate Middleware
+  activate Controller
   Controller -> Service: .GetAllCourses()
   activate Service
   Service -> Repository: .GetAllCourses()
@@ -133,9 +133,8 @@ else Authorized
           deactivate Controller
           deactivate Router
         end
+      end
     end
-
   end
-
 end
 @enduml
