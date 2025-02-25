@@ -1,0 +1,184 @@
+@startuml SequenceDiagram
+title Edit Quiz
+
+actor User
+
+activate Frontend
+
+Frontend -> Router: GET /api/courses
+activate Router
+
+Router -> Middleware: .Use(Middleware)
+activate Middleware
+
+alt Unauthorized (401 Unauthorized)
+    Middleware -->> Router: 401 Unauthorized
+    Router -->> Frontend: 401 Unauthorized
+    Frontend -->> User: Show error "Please log in"
+else Authorized
+    Middleware -->> Router: Proceed
+    deactivate Middleware
+    Router -> Controller: .GetAllCourses()
+    deactivate Router
+    activate Controller
+    Controller -> Service: .GetAllCourses()
+    activate Service
+    Service -> Repository: .GetAllCourses()
+    activate Repository
+    Repository -> Database: SELECT * FROM courses WHERE owner_id = @user_id
+    activate Database
+    Database -->> Repository : Courses
+    deactivate Database
+    Repository -->> Service : Courses
+    deactivate Repository
+    Service -->> Controller : Courses
+    deactivate Service
+    alt Courses == Error
+        Controller -->> Router : 500 Internal Server Error
+        Router -->> Frontend : 500 Internal Server Error
+        Frontend -->> User : Show error "Failed to fetch courses"
+    else Courses == Null
+        Controller -->> Router : 404 Not Found
+        Router -->> Frontend : 404 Not Found
+        Frontend -->> User : Show message "Course not found"
+    else
+        Controller -->> Router : 200 OK
+        Router -->> Frontend : 200 OK
+        Frontend -->> User : Show courses list
+    end
+    deactivate Controller
+
+    opt User selects a course
+        User -> Frontend: .handleCourseClick(courseId)
+        Frontend -> Router: GET /api/courses/{courseId}
+        activate Router
+        Router -> Middleware: .Use(Middleware)
+        activate Middleware
+        alt Unauthorized (401 Unauthorized)
+            Middleware -->> Router: 401 Unauthorized
+            Router -->> Frontend: 401 Unauthorized
+            Frontend -->> User: Show error "Please log in"
+        else Authorized
+            Middleware -->> Router: Proceed
+            deactivate Middleware
+            Router -> Controller: .GetQuizzes(courseId)
+            activate Controller
+            Controller -> Service: .GetQuizzes(courseId)
+            activate Service
+            Service -> Repository: .GetQuizzes(courseId)
+            activate Repository
+            Repository -> Database: SELECT * FROM quizzes WHERE course_id = @course_id
+            activate Database
+            Database -->> Repository : Quizzes
+            deactivate Database
+            Repository -->> Service : Quizzes
+            deactivate Repository
+            Service -->> Controller : Quizzes
+            deactivate Service
+            alt Quizzes == Error
+                Controller -->> Router : 500 Internal Server Error
+                Router -->> Frontend : 500 Internal Server Error
+                Frontend -->> User : Show error "Failed to fetch quizzes"
+            else Quizzes == Null
+                Controller -->> Router : 404 Not Found
+                Router -->> Frontend : 404 Not Found
+                Frontend -->> User : Show message "Quiz not found"
+            else
+                Controller -->> Router : 200 OK
+                Router -->> Frontend : 200 OK
+                Frontend -->> User : Show quizzes list
+            end
+            deactivate Controller
+        end
+    end
+
+    opt User selects a quiz
+        User -> Frontend: .handleQuizClick(quizId)
+        Frontend -> Router: GET /api/quizzes/{quizId}
+        activate Router
+        Router -> Middleware: .Use(Middleware)
+        activate Middleware
+        alt Unauthorized (401 Unauthorized)
+            Middleware -->> Router: 401 Unauthorized
+            Router -->> Frontend: 401 Unauthorized
+            Frontend -->> User: Show error "Please log in"
+        else Authorized
+            Middleware -->> Router: Proceed
+            deactivate Middleware
+            Router -> Controller: .GetQuiz(quizId)
+            activate Controller
+            Controller -> Service: .GetQuiz(quizId)
+            activate Service
+            Service -> Repository: .GetQuiz(quizId)
+            activate Repository
+            Repository -> Database: SELECT * FROM quizzes WHERE id = @quiz_id
+            activate Database
+            Database -->> Repository : Quiz
+            deactivate Database
+            Repository -->> Service : Quiz
+            deactivate Repository
+            Service -->> Controller : Quiz
+            deactivate Service
+            alt Quiz == Error
+                Controller -->> Router : 500 Internal Server Error
+                Router -->> Frontend : 500 Internal Server Error
+                Frontend -->> User : Show error "Failed to fetch quiz"
+            else
+                Controller -->> Router : 200 OK
+                Router -->> Frontend : 200 OK
+                Frontend -->> User : Show quiz details
+            end
+            deactivate Controller
+        end
+    end
+
+    opt User edits quiz
+        User -> Frontend : handleEditQuizClick(quizId)
+        Frontend -->> User : Show quiz edit form
+        User -> Frontend : handleSubmitQuizEdit(quizId, content, quiz_type, requirements)
+        Frontend -> Frontend : Validate quiz data
+        alt Invalid Data
+            Frontend -->> User : Show error "Invalid input"
+        else Valid Data
+            Frontend -> Router: PUT /api/quizzes/{quizId} {content, quiz_type, requirements}
+            activate Router
+            Router -> Middleware: .Use(Middleware)
+            activate Middleware
+            alt Unauthorized (401 Unauthorized)
+                Middleware -->> Router: 401 Unauthorized
+                Router -->> Frontend: 401 Unauthorized
+                Frontend -->> User: Show error "Please log in"
+            else Authorized
+                Middleware -->> Router: Proceed
+                deactivate Middleware
+                Router -> Controller: .EditQuiz(quizId, content, quiz_type, requirements)
+                activate Controller
+                Controller -> Service: .EditQuiz(quizId, content, quiz_type, requirements)
+                activate Service
+                Service -> Repository: .EditQuiz(quizId, content, quiz_type, requirements)
+                activate Repository
+                Repository -> Database: UPDATE quizzes SET content = @content, quiz_type = @quiz_type, requirements = @requirements WHERE id = @quiz_id
+                activate Database
+                Database -->> Repository : Quiz
+                deactivate Database
+                Repository -->> Service : Quiz
+                deactivate Repository
+                Service -->> Controller : Quiz
+                deactivate Service
+                alt Quiz == Error
+                    Controller -->> Router : 500 Internal Server Error
+                    Router -->> Frontend : 500 Internal Server Error
+                    Frontend -->> User : Show error "Quiz edit failed"
+                else
+                    Controller -->> Router : 200 OK
+                    Router -->> Frontend : 200 OK
+                    Frontend -->> User : Show success "Quiz edited"
+                end
+                deactivate Controller
+                deactivate Router
+            end
+        end
+    end
+
+end
+@enduml
