@@ -1,0 +1,50 @@
+@startuml CreateQuiz
+title Make Reservation - Next.js & GoFiber
+
+actor Tenant
+
+Tenant -> Frontend: Click "Make Reservation"
+Frontend -> Frontend: Validate input
+
+alt Invalid Input (400 Bad Request)
+    Frontend -> Tenant: Show error "Invalid input"
+else Valid Input
+    Frontend -> Backend: POST /api/reservations {room_number, move_in_date}
+
+    Backend -> Middleware: Verify JWT Token
+    alt Unauthorized (401 Unauthorized)
+        Middleware -> Frontend: 401 Unauthorized
+        Frontend -> Tenant: Show error "Please log in"
+    else Valid Authentication
+        Backend -> Router: Forward request to Controller
+        Backend -> Controller: Call ReservationService.MakeReservation
+        
+        Backend -> Service: Validate room availability
+        Backend -> Repository: Check room in Database
+        
+        alt Room Not Found (404 Not Found)
+            Repository -> Service: Room does not exist
+            Service -> Controller: 404 Not Found
+            Controller -> Frontend: 404 Not Found
+            Frontend -> Tenant: Show error "Room does not exist"
+        else Room Already Reserved (409 Conflict)
+            Repository -> Service: Room already booked
+            Service -> Controller: 409 Conflict
+            Controller -> Frontend: 409 Conflict
+            Frontend -> Tenant: Show error "Room is already booked"
+        else Database Error (500 Internal Server Error)
+            Repository -> Service: Database error
+            Service -> Controller: 500 Internal Server Error
+            Controller -> Frontend: 500 Internal Server Error
+            Frontend -> Tenant: Show error "Something went wrong"
+        else Success (200 OK)
+            Backend -> Repository: INSERT INTO reservation
+            Repository -> Service: Reservation successful
+            Service -> Controller: 200 OK
+            Controller -> Frontend: 200 OK { "message": "Reservation successful" }
+            Frontend -> Tenant: Show success "Reservation confirmed"
+        end
+    end
+end
+
+@enduml
