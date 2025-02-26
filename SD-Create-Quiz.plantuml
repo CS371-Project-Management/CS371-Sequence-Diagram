@@ -51,7 +51,7 @@ else Authorized
 
   opt User selects a class
     User -> Frontend: .handleClassClick(classId)
-    Frontend -> Router: GET /api/courses
+    Frontend -> Router: GET /api/courses/{classId}
     activate Router
 
     Router -> Middleware: .Use(Middleware)
@@ -64,13 +64,13 @@ else Authorized
     else Authorized
       Middleware -->> Router: Proceed
       deactivate Middleware
-      Router -> Controller: .GetAllCourses()
+      Router -> Controller: .GetAllCourses(classId)
       activate Controller
-      Controller -> Service: .GetAllCourses()
+      Controller -> Service: .GetAllCourses(classId)
       activate Service
-      Service -> Repository: .GetAllCourses()
+      Service -> Repository: .GetAllCourses(classId)
       activate Repository
-      Repository -> Database: SELECT * FROM courses WHERE owner_id = @user_id
+      Repository -> Database: SELECT * FROM courses WHERE class_id = @class_id
       activate Database
       Database -->> Repository : Courses
       deactivate Database
@@ -183,7 +183,5 @@ else Authorized
       end
     end
   end
-  
-
 end
 @enduml
