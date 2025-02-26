@@ -5,135 +5,143 @@ actor User
 
 activate Frontend
 
-Frontend -> Router: GET /api/courses
+Frontend -> Router: GET /api/classes
 activate Router
 
 Router -> Middleware: .Use(Middleware)
 activate Middleware
 
 alt Unauthorized (401 Unauthorized)
-    Middleware -->> Router: 401 Unauthorized
-    Router -->> Frontend: 401 Unauthorized
-    Frontend -->> User: Show error "Please log in"
+  Middleware -->> Router: 401 Unauthorized
+  Router -->> Frontend: 401 Unauthorized
+  Frontend -->> User: Show error "Please log in"
 else Authorized
-    Middleware -->> Router: Proceed
-    deactivate Middleware
-    Router -> Controller: .GetAllCourses()
-    activate Controller
-    Controller -> Service: .GetAllCourses()
-    activate Service
-    Service -> Repository: .GetAllCourses()
-    activate Repository
-    Repository -> Database: SELECT * FROM courses WHERE owner_id = @user_id
-    activate Database
-    Database -->> Repository : Courses
-    deactivate Database
-    Repository -->> Service : Courses
-    deactivate Repository
-    Service -->> Controller : Courses
-    deactivate Service
-    alt Courses == Error
+  Middleware -->> Router: Proceed
+  deactivate Middleware
+  Router -> Controller: .GetAllClasses()
+  activate Controller
+  Controller -> Service: .GetAllClasses()
+  activate Service
+  Service -> Repository: .GetAllClasses()
+  activate Repository
+  Repository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  activate Database
+  Database -->> Repository : Classes
+  deactivate Database
+  Repository -->> Service : Classes
+  deactivate Repository
+  Service -->> Controller : Classes
+  deactivate Service
+  alt Classes == Error
+    Controller -->> Router : 500 Internal Server Error
+    Router -->> Frontend : 500 Internal Server Error
+    Frontend -->> User : Show error "Failed to fetch classes"
+  else Classes == Null
+    Controller -->> Router : 404 Not Found
+    Router -->> Frontend : 404 Not Found
+    Frontend -->> User : Show message "Class not found"
+  else
+    Controller -->> Router : 200 OK
+    Router -->> Frontend : 200 OK
+    Frontend -->> User : Show classes list
+  end
+  deactivate Controller
+  deactivate Router
+
+  opt User selects a class
+    User -> Frontend: .handleClassClick(classId)
+    Frontend -> Router: GET /api/courses/{classId}
+    activate Router
+
+    Router -> Middleware: .Use(Middleware)
+    activate Middleware
+
+    alt Unauthorized (401 Unauthorized)
+      Middleware -->> Router: 401 Unauthorized
+      Router -->> Frontend: 401 Unauthorized
+      Frontend -->> User: Show error "Please log in"
+    else Authorized
+      Middleware -->> Router: Proceed
+      deactivate Middleware
+      Router -> Controller: .GetAllCourses(classId)
+      activate Controller
+      Controller -> Service: .GetAllCourses(classId)
+      activate Service
+      Service -> Repository: .GetAllCourses(classId)
+      activate Repository
+      Repository -> Database: SELECT * FROM courses WHERE class_id = @class_id
+      activate Database
+      Database -->> Repository : Courses
+      deactivate Database
+      Repository -->> Service : Courses
+      deactivate Repository
+      Service -->> Controller : Courses
+      deactivate Service
+      alt Courses == Error
         Controller -->> Router : 500 Internal Server Error
         Router -->> Frontend : 500 Internal Server Error
         Frontend -->> User : Show error "Failed to fetch courses"
-    else Courses == Null
+      else Courses == Null
         Controller -->> Router : 404 Not Found
         Router -->> Frontend : 404 Not Found
         Frontend -->> User : Show message "Course not found"
-    else
+      else
         Controller -->> Router : 200 OK
         Router -->> Frontend : 200 OK
         Frontend -->> User : Show courses list
-    end
-    deactivate Controller
+      end
+      deactivate Controller
+      deactivate Router
 
-    opt User selects a course
+      opt User selects a course
         User -> Frontend: .handleCourseClick(courseId)
-        Frontend -> Router: GET /api/courses/{courseId}
-        activate Router
-        Router -> Middleware: .Use(Middleware)
-        activate Middleware
-        alt Unauthorized (401 Unauthorized)
-            Middleware -->> Router: 401 Unauthorized
-            Router -->> Frontend: 401 Unauthorized
-            Frontend -->> User: Show error "Please log in"
-        else Authorized
-            Middleware -->> Router: Proceed
-            deactivate Middleware
-            Router -> Controller: .GetLogs(courseId)
-            activate Controller
-            Controller -> Service: .GetLogs(courseId)
-            activate Service
-            Service -> Repository: .GetLogs(courseId)
-            activate Repository
-            Repository -> Database: SELECT * FROM logs WHERE course_id = @course_id
-            activate Database
-            Database -->> Repository : Logs
-            deactivate Database
-            Repository -->> Service : Logs
-            deactivate Repository
-            Service -->> Controller : Logs
-            deactivate Service
-            alt Logs == Error
-                Controller -->> Router : 500 Internal Server Error
-                Router -->> Frontend : 500 Internal Server Error
-                Frontend -->> User : Show error "Failed to fetch logs"
-            else Logs == Null
-                Controller -->> Router : 404 Not Found
-                Router -->> Frontend : 404 Not Found
-                Frontend -->> User : Show message "No logs found"
-            else
-                Controller -->> Router : 200 OK
-                Router -->> Frontend : 200 OK
-                Frontend -->> User : Show logs list
-            end
-            deactivate Controller
-        end
-    end
+        Frontend -->> User: Show Log-Type menu
 
-    opt User selects calculation method
-        User -> Frontend: .handleCalculationMethodSelect(method)
-        Frontend -> Router: GET /api/statistics/{method}
+        User -> Frontend: .handleLogClick(courseId, logType)
+        Frontend -> Router: GET /api/logs/{courseId}
         activate Router
+
         Router -> Middleware: .Use(Middleware)
         activate Middleware
+
         alt Unauthorized (401 Unauthorized)
-            Middleware -->> Router: 401 Unauthorized
-            Router -->> Frontend: 401 Unauthorized
-            Frontend -->> User: Show error "Please log in"
+          Middleware -->> Router: 401 Unauthorized
+          Router -->> Frontend: 401 Unauthorized
+          Frontend -->> User: Show error "Please log idn"
         else Authorized
-            Middleware -->> Router: Proceed
-            deactivate Middleware
-            Router -> Controller: .GetStatistics(courseId, method)
-            activate Controller
-            Controller -> Service: .GetStatistics(courseId, method)
-            activate Service
-            Service -> Repository: .GetStatistics(courseId, method)
-            activate Repository
-            Repository -> Database: SELECT * FROM statistics WHERE course_id = @course_id AND method = @method
-            activate Database
-            Database -->> Repository : Statistics
-            deactivate Database
-            Repository -->> Service : Statistics
-            deactivate Repository
-            Service -->> Controller : Statistics
-            deactivate Service
-            alt Statistics == Error
-                Controller -->> Router : 500 Internal Server Error
-                Router -->> Frontend : 500 Internal Server Error
-                Frontend -->> User : Show error "Failed to calculate statistics"
-            else Statistics == Null
-                Controller -->> Router : 404 Not Found
-                Router -->> Frontend : 404 Not Found
-                Frontend -->> User : Show message "No statistics found"
-            else
-                Controller -->> Router : 200 OK
-                Router -->> Frontend : 200 OK
-                Frontend -->> User : Show statistics
-            end
-            deactivate Controller
+          Middleware -->> Router: Proceed
+          deactivate Middleware
+          Router -> Controller: .GetAllLogs(courseId,logType)
+          activate Controller
+          Controller -> Service: .GetAllLogs(courseId,logType)
+          activate Service
+          Service -> Repository: .GetAllLogs(courseId,logType)
+          activate Repository
+          Repository -> Database: SELECT * FROM logs WHERE course_id = @course_id AND type = @log_type
+          activate Database
+          Database -->> Repository : Logs
+          deactivate Database
+          Repository -->> Service : Logs
+          deactivate Repository
+          Service -->> Controller : Logs
+          deactivate Service
+          alt Logs == Error
+            Controller -->> Router : 500 Internal Server Error
+            Router -->> Frontend : 500 Internal Server Error
+            Frontend -->> User : Show error "Failed to fetch logs"
+          else Logs == Null
+            Controller -->> Router : 404 Not Found
+            Router -->> Frontend : 404 Not Found
+            Frontend -->> User : Show message "Log not found"
+          else
+            Controller -> Controller : Calculate statistics
+            Controller -->> Router : 200 OK
+            Router -->> Frontend : 200 OK
+            Frontend -->> User : Show logs list
+          end
         end
+      end
     end
+  end
 end
-
 @enduml
