@@ -2,6 +2,13 @@
 title Analyze Log
 
 actor User
+participant Frontend
+participant Router
+participant Middleware
+participant Controller
+participant Service
+participant Repository
+participant Database
 
 activate Frontend
 
@@ -21,7 +28,7 @@ deactivate Database
 Repository -->> Service: SessionToken
 deactivate Repository
 Service -->> Middleware: SessionToken
-
+deactivate Service
 alt Unauthorized (401 Unauthorized)
   Middleware -->> Router: 401 Unauthorized
   Router -->> Frontend: 401 Unauthorized
@@ -77,6 +84,7 @@ else Authorized
     Repository -->> Service: SessionToken
     deactivate Repository
     Service -->> Middleware: SessionToken
+    deactivate Service
     alt Unauthorized (401 Unauthorized)
       Middleware -->> Router: 401 Unauthorized
       Router -->> Frontend: 401 Unauthorized
@@ -135,6 +143,7 @@ else Authorized
         Repository -->> Service: SessionToken
         deactivate Repository
         Service -->> Middleware: SessionToken
+        deactivate Service
         alt Unauthorized (401 Unauthorized)
           Middleware -->> Router: 401 Unauthorized
           Router -->> Frontend: 401 Unauthorized
