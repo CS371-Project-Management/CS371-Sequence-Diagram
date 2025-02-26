@@ -34,7 +34,7 @@ alt Unauthorized (401 Unauthorized)
   Router -->> Frontend: 401 Unauthorized
   Frontend -->> User: Show error "Please log in"
 else Authorized
-  Middleware -->> Router: Proceed
+  Middleware -->> Router: Route to Router
   deactivate Middleware
   Router -> Controller: .GetAllClasses()
   activate Controller
@@ -44,13 +44,13 @@ else Authorized
   activate Repository
   Repository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
   activate Database
-  Database -->> Repository : Classes
+  Database -->> Repository : Classes, Error
   deactivate Database
-  Repository -->> Service : Classes
+  Repository -->> Service : Classes, Error
   deactivate Repository
-  Service -->> Controller : Classes
+  Service -->> Controller : Classes, Error
   deactivate Service
-  alt Classes == Error
+  alt Error != Null
     Controller -->> Router : 500 Internal Server Error
     Router -->> Frontend : 500 Internal Server Error
     Frontend -->> User : Show error "Failed to fetch classes"
@@ -90,7 +90,7 @@ else Authorized
       Router -->> Frontend: 401 Unauthorized
       Frontend -->> User: Show error "Please log in"
     else Authorized
-      Middleware -->> Router: Proceed
+      Middleware -->> Router: Route to Router
       deactivate Middleware
       Router -> Controller: .GetAllCourses(classId)
       activate Controller
@@ -100,13 +100,13 @@ else Authorized
       activate Repository
       Repository -> Database: SELECT * FROM courses WHERE class_id = @class_id
       activate Database
-      Database -->> Repository : Courses
+      Database -->> Repository : Courses, Error
       deactivate Database
-      Repository -->> Service : Courses
+      Repository -->> Service : Courses, Error
       deactivate Repository
-      Service -->> Controller : Courses
+      Service -->> Controller : Courses, Error
       deactivate Service
-      alt Courses == Error
+      alt Error != Null
         Controller -->> Router : 500 Internal Server Error
         Router -->> Frontend : 500 Internal Server Error
         Frontend -->> User : Show error "Failed to fetch courses"
@@ -149,7 +149,7 @@ else Authorized
           Router -->> Frontend: 401 Unauthorized
           Frontend -->> User: Show error "Please log idn"
         else Authorized
-          Middleware -->> Router: Proceed
+          Middleware -->> Router: Route to Router
           deactivate Middleware
           Router -> Controller: .GetAllLogs(courseId,logType)
           activate Controller
@@ -159,13 +159,13 @@ else Authorized
           activate Repository
           Repository -> Database: SELECT * FROM logs WHERE course_id = @course_id AND type = @log_type
           activate Database
-          Database -->> Repository : Logs
+          Database -->> Repository : Logs, Error
           deactivate Database
-          Repository -->> Service : Logs
+          Repository -->> Service : Logs, Error
           deactivate Repository
-          Service -->> Controller : Logs
+          Service -->> Controller : Logs, Error
           deactivate Service
-          alt Logs == Error
+          alt Error != Null
             Controller -->> Router : 500 Internal Server Error
             Router -->> Frontend : 500 Internal Server Error
             Frontend -->> User : Show error "Failed to fetch logs"

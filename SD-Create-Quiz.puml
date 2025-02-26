@@ -36,7 +36,7 @@ alt Unauthorized (401 Unauthorized)
   Router -->> Frontend: 401 Unauthorized
   Frontend -->> User: Show error "Please log idn"
 else Authorized
-  Middleware -->> Router: Proceed
+  Middleware -->> Router: Route to Router
   deactivate Middleware
   Router -> Controller: .GetAllClasses()
   activate Controller
@@ -46,13 +46,13 @@ else Authorized
   activate Repository
   Repository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
   activate Database
-  Database -->> Repository : Classes
+  Database -->> Repository : Classes, Error
   deactivate Database
-  Repository -->> Service : Classes
+  Repository -->> Service : Classes, Error
   deactivate Repository
-  Service -->> Controller : Classes
+  Service -->> Controller : Classes, Error
   deactivate Service
-  alt Classes == Error
+  alt Error != Null
     Controller -->> Router : 500 Internal Server Error
     Router -->> Frontend : 500 Internal Server Error
     Frontend -->> User : Show error "Failed to fetch classes"
@@ -92,7 +92,7 @@ else Authorized
       Router -->> Frontend: 401 Unauthorized
       Frontend -->> User: Show error "Please log idn"
     else Authorized
-      Middleware -->> Router: Proceed
+      Middleware -->> Router: Route to Router
       deactivate Middleware
       Router -> Controller: .GetAllCourses(classId)
       activate Controller
@@ -102,13 +102,13 @@ else Authorized
       activate Repository
       Repository -> Database: SELECT * FROM courses WHERE class_id = @class_id
       activate Database
-      Database -->> Repository : Courses
+      Database -->> Repository : Courses, Error
       deactivate Database
-      Repository -->> Service : Courses
+      Repository -->> Service : Courses, Error
       deactivate Repository
-      Service -->> Controller : Courses
+      Service -->> Controller : Courses, Error
       deactivate Service
-      alt Courses == Error
+      alt Error != Null
         Controller -->> Router : 500 Internal Server Error
         Router -->> Frontend : 500 Internal Server Error
         Frontend -->> User : Show error "Failed to fetch courses"
@@ -147,7 +147,7 @@ else Authorized
           Router -->> Frontend: 401 Unauthorized
           Frontend -->> User: Show error "Please log in"
         else Authorized
-          Middleware -->> Router: Proceed
+          Middleware -->> Router: Route to Router
           deactivate Middleware
           Router -> Controller: .GetCourse(courseId)
           activate Controller
@@ -157,13 +157,13 @@ else Authorized
           activate Repository
           Repository -> Database: SELECT * FROM courses WHERE id = @course_id
           activate Database
-          Database -->> Repository : Course
+          Database -->> Repository : Course, Error
           deactivate Database
-          Repository -->> Service : Course
+          Repository -->> Service : Course, Error
           deactivate Repository
-          Service -->> Controller : Course
+          Service -->> Controller : Course, Error
           deactivate Service
-          alt Course == Error
+          alt Error != Null
             Controller -->> Router : 500 Internal Server Error
             Router -->> Frontend : 500 Internal Server Error
             Frontend -->> User : Show error "Failed to fetch course"
@@ -204,7 +204,7 @@ else Authorized
               Router -->> Frontend: 401 Unauthorized
               Frontend -->> User: Show error "Please log in"
             else Authorized
-              Middleware -->> Router: Proceed
+              Middleware -->> Router: Route to Router
               deactivate Middleware
               Router -> Controller: .CreateQuiz(courseId, content, quiz_type, requirements)
               activate Controller
@@ -214,13 +214,13 @@ else Authorized
               activate Repository
               Repository -> Database: INSERT INTO quizzes (course_id, content, quiz_type, requirements) VALUES (@course_id, @content, @quiz_type, @requirements)
               activate Database
-              Database -->> Repository : Quiz
+              Database -->> Repository : Quiz, Error
               deactivate Database
-              Repository -->> Service : Quiz
+              Repository -->> Service : Quiz, Error
               deactivate Repository
-              Service -->> Controller : Quiz
+              Service -->> Controller : Quiz, Error
               deactivate Service
-              alt Quiz == Error
+              alt Error != Null
                 Controller -->> Router : 500 Internal Server Error
                 Router -->> Frontend : 500 Internal Server Error
                 Frontend -->> User : Show error "Quiz creation failed"
