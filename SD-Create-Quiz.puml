@@ -141,7 +141,7 @@ else Authorized
           alt Invalid Data
             Frontend -->> User : Show error "Invalid input"
           else Valid Data
-            Frontend -> Router: POST /api/quizzes {courseId, content, quiz_type, requirements}
+            Frontend -> Router: POST /api/quizzes
             activate Router
             Router -> Middleware: .Use(Middleware)
             activate Middleware
