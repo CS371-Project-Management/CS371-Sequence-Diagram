@@ -121,17 +121,17 @@ else Authorized
             Service -->> Controller : Quizzes
             deactivate Service
             alt Quizzes == Error
-                Controller -->> Router : 500 Internal Server Error
-                Router -->> Frontend : 500 Internal Server Error
-                Frontend -->> User : Show error "Failed to fetch quizzes"
+              Controller -->> Router : 500 Internal Server Error
+              Router -->> Frontend : 500 Internal Server Error
+              Frontend -->> User : Show error "Failed to fetch quizzes"
             else Quizzes == Null
-                Controller -->> Router : 404 Not Found
-                Router -->> Frontend : 404 Not Found
-                Frontend -->> User : Show message "Quiz not found"
+              Controller -->> Router : 404 Not Found
+              Router -->> Frontend : 404 Not Found
+              Frontend -->> User : Show message "Quiz not found"
             else
-                Controller -->> Router : 200 OK
-                Router -->> Frontend : 200 OK
-                Frontend -->> User : Show quizzes list
+              Controller -->> Router : 200 OK
+              Router -->> Frontend : 200 OK
+              Frontend -->> User : Show quizzes list
             end
             deactivate Controller
             deactivate Router
@@ -153,7 +153,7 @@ else Authorized
                 activate Controller
                 Controller -> Service: .GetQuiz(quizId)
                 activate Service
-                Service -> Repository: .GetQuiz(quizId)
+                Service -> Repository: .GetQuiz(quizId)]
                 activate Repository
                 Repository -> Database: SELECT * FROM quizzes WHERE id = @quiz_id
                 activate Database
