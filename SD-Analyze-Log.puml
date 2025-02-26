@@ -10,6 +10,17 @@ activate Router
 
 Router -> Middleware: .Use(Middleware)
 activate Middleware
+Middleware -> Service: .GetSessionToken()
+activate Service
+Service -> Repository: .GetSessionToken()
+activate Repository
+Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
+activate Database
+Database -->> Repository: SessionToken
+deactivate Database
+Repository -->> Service: SessionToken
+deactivate Repository
+Service -->> Middleware: SessionToken
 
 alt Unauthorized (401 Unauthorized)
   Middleware -->> Router: 401 Unauthorized
@@ -55,7 +66,17 @@ else Authorized
 
     Router -> Middleware: .Use(Middleware)
     activate Middleware
-
+    Middleware -> Service: .GetSessionToken()
+    activate Service
+    Service -> Repository: .GetSessionToken()
+    activate Repository
+    Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
+    activate Database
+    Database -->> Repository: SessionToken
+    deactivate Database
+    Repository -->> Service: SessionToken
+    deactivate Repository
+    Service -->> Middleware: SessionToken
     alt Unauthorized (401 Unauthorized)
       Middleware -->> Router: 401 Unauthorized
       Router -->> Frontend: 401 Unauthorized
@@ -103,7 +124,17 @@ else Authorized
 
         Router -> Middleware: .Use(Middleware)
         activate Middleware
-
+        Middleware -> Service: .GetSessionToken()
+        activate Service
+        Service -> Repository: .GetSessionToken()
+        activate Repository
+        Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
+        activate Database
+        Database -->> Repository: SessionToken
+        deactivate Database
+        Repository -->> Service: SessionToken
+        deactivate Repository
+        Service -->> Middleware: SessionToken
         alt Unauthorized (401 Unauthorized)
           Middleware -->> Router: 401 Unauthorized
           Router -->> Frontend: 401 Unauthorized
