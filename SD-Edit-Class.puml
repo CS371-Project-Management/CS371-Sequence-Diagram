@@ -17,6 +17,7 @@ activate Router
 Router -> MW: validateSession()
 activate MW
 MW -> Controller: getAdminClasses(userID)
+deactivate MW
 activate Controller
 Controller -> Service: getAdminClasses(userID)
 activate Service
@@ -30,10 +31,8 @@ Repository --> Service: classList
 deactivate Repository
 Service --> Controller: classList
 deactivate Service
-Controller --> MW: returnSuccess(classList)
+Controller --> Router: successResponse(200, classList)
 deactivate Controller
-MW --> Router: successResponse(200, classList)
-deactivate MW
 Router --> FE: successResponse(200, classList)
 deactivate Router
 FE -> User: displayClassesList(classList)
@@ -48,14 +47,13 @@ activate Router
 Router -> MW: validateRequest()
 activate MW
 MW -> Controller: editClass(classID, updatedData)
+deactivate MW
 activate Controller
 Controller -> Controller: validateUpdatedData(updatedData)
 alt invalidData (7.1a)
-    Controller -> MW: returnError("Data incomplete/incorrect")
-    MW -> Router: errorResponse(400, "Data incomplete/incorrect")
+    Controller -> Router: returnError("Data incomplete/incorrect")
     Router -> FE: errorResponse(400, "Data incomplete/incorrect")
     deactivate Controller
-    deactivate MW
     deactivate Router
 else validData (7.1)
     Controller -> Service: editClass(classID, updatedData)
@@ -66,24 +64,22 @@ else validData (7.1)
     activate DB
     DB --> Repository: affectedRows
     deactivate DB
-    alt updateFailure (8.1a)
-        Repository -> Service: returnError("Edit class failed")
+    alt updateFailure
+        Repository -> Service: returnError("Edit failed")
         deactivate Repository
-        Service -> Controller: returnError("Edit class failed")
+        Service -> Controller: returnError("Edit failed")
         deactivate Service
-        Controller -> MW: returnError("Edit class failed")
-        MW -> Router: errorResponse(500, "Edit class failed")
-        Router -> FE: errorResponse(500, "Edit class failed")
+        Controller -> Router: errorResponse(500, "Edit failed")
+        Router -> FE: errorResponse(500, "Edit failed")
         deactivate Controller
         deactivate MW
         deactivate Router
-    else updateSuccess (8.1)
-        Repository -> Service: returnClassRecord(updatedClass)
+    else updateSuccess (5.1)
+        Repository --> Service: returnClassRecord(updatedClass)
         deactivate Repository
-        Service -> Controller: returnClassRecord(updatedClass)
+        Service --> Controller: returnClassRecord(updatedClass)
         deactivate Service
-        Controller -> MW: returnSuccess("Edit class successful", updatedClass)
-        MW -> Router: successResponse(200, "Edit class successful", updatedClass)
+        Controller -> Router: successResponse(200, "Edit class successful", updatedClass)
         Router -> FE: successResponse(200, "Edit class successful", updatedClass)
         FE -> User: displayMessage("Edit class successful")
         deactivate Controller

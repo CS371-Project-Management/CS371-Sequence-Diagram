@@ -21,12 +21,12 @@ activate Router
 Router -> MW: validateRequest()
 activate MW
 MW -> Controller: CreateClass(name, description, privacy)
+deactivate MW
 activate Controller
 Controller -> Controller: validateInput()
 
 alt invalidInput (4.1a)
-    Controller -> MW: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
-    MW -> Router: returnErrorResponse(400)
+    Controller -> Router: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     Router -> FE: errorResponse(400)
 else validInput (4.1)
     Controller -> Service: CreateClass(name, description, privacy)
@@ -37,25 +37,14 @@ else validInput (4.1)
     activate DB
     DB -->> Repository: affectedRows / classRecord
     deactivate DB
-    alt insertFailure (5.1a)
-        Repository -> Service: returnError("ไม่สามารถบันทึกการสร้าง class ได้")
-        deactivate Repository
-        Service -> Controller: returnError("ไม่สามารถบันทึกการสร้าง class ได้")
-        deactivate Service
-        Controller -> MW: returnError("ไม่สามารถบันทึกการสร้าง class ได้")
-        MW -> Router: returnErrorResponse(500, "ไม่สามารถบันทึกการสร้าง class ได้")
-        Router -> FE: errorResponse(500, "ไม่สามารถบันทึกการสร้าง class ได้")
-    else insertSuccess (5.1)
+
         Repository -> Service: returnClassRecord(classRecord)
         deactivate Repository
         Service -> Controller: returnClassRecord(classRecord)
         deactivate Service
-        Controller -> MW: returnSuccess("สร้าง class สำเร็จ", classRecord)
-        MW -> Router: successResponse(201, classRecord)
+        Controller -> Router: successResponse(201, classRecord)
         Router -> FE: successResponse(201, classRecord)
-        Controller -> FE: -
         FE -> User: displayMessage("สร้าง class สำเร็จ")
-    end
 end
 deactivate Controller
 deactivate MW

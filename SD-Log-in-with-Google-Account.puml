@@ -1,4 +1,4 @@
-@startuml SequenceDiagram
+@startuml
 title Log-in with Google Account
 
 actor User
@@ -31,10 +31,12 @@ alt ไม่มี session ที่ใช้งานอยู่
 
     Router -> AuthController: รับ auth code (callback)
     activate AuthController
+
     AuthController -> GoogleOAuth: POST /token\nส่ง auth code, client_id, secret, redirect_uri
     activate GoogleOAuth
     GoogleOAuth -> AuthController: คืนค่า access token (และ id_token)
     deactivate GoogleOAuth
+
     AuthController -> GoogleOAuth: GET /userinfo\nส่ง access token
     activate GoogleOAuth
     GoogleOAuth -> AuthController: คืนค่า user profile (GoogleID, Email, Name)
@@ -50,6 +52,7 @@ alt ไม่มี session ที่ใช้งานอยู่
     activate Database
     Database -->> Repository: คืนค่า user record (ถ้ามี)
     deactivate Database
+
     alt ผู้ใช้มีอยู่แล้ว
         Repository -->> Service: คืนข้อมูลผู้ใช้ที่มีอยู่
     else ผู้ใช้ใหม่
@@ -60,6 +63,7 @@ alt ไม่มี session ที่ใช้งานอยู่
         Repository -> Service: ส่งผลลัพธ์การ insert (User Created)
     end
     deactivate Repository
+
     Service -> AuthController: คืนค่า User Data (UserID, GoogleID, Email, Name)
     deactivate Service
 
@@ -78,7 +82,6 @@ alt ไม่มี session ที่ใช้งานอยู่
 
     AuthController -> Router: ส่ง session token และข้อมูลผู้ใช้
     deactivate AuthController
-
 else มี session อยู่แล้ว
     Middleware -> Router: ดำเนินการต่อด้วย session ที่มีอยู่
 end
@@ -87,7 +90,7 @@ deactivate Middleware
 deactivate Router
 
 Router -> Frontend: 200 OK (Login successful, Set-Cookie header)
-Frontend -> User: Redirect ไปยัง dashboard (ผ่าน client-side routing ของ Next.js)
+Frontend -> User: Redirect ไปยัง dashboard\n(ผ่าน client-side routing ของ Next.js)
 deactivate Frontend
 
 @enduml
