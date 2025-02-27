@@ -1,0 +1,93 @@
+@startuml SequenceDiagram
+title Log-in with Google Account
+
+actor User
+participant Frontend
+participant Router
+participant Middleware
+participant AuthController
+participant GoogleOAuthClient as GoogleOAuth
+participant Service
+participant Repository
+participant Database
+
+activate Frontend
+User -> Frontend: คลิก "Login"
+Frontend -> User: แสดงตัวเลือกในการ Login
+User -> Frontend: คลิก "Login with Google"
+Frontend -> Router: GET /api/auth/google
+activate Router
+
+Router -> Middleware: ตรวจสอบ session (Cookie/JWT)
+activate Middleware
+
+alt ไม่มี session ที่ใช้งานอยู่
+    Middleware -> GoogleOAuth: Redirect user ไปยัง Google OAuth URL\n(รวม state parameter)
+    activate GoogleOAuth
+    GoogleOAuth -> User: แสดงหน้า login ของ Google
+    User -> GoogleOAuth: เลือกบัญชี Google และล็อกอิน
+    GoogleOAuth -> Router: Redirect กลับมาพร้อม auth code และ state
+    deactivate GoogleOAuth
+
+    Router -> AuthController: รับ auth code (callback)
+    activate AuthController
+    AuthController -> GoogleOAuth: POST /token\nส่ง auth code, client_id, secret, redirect_uri
+    activate GoogleOAuth
+    GoogleOAuth -> AuthController: คืนค่า access token (และ id_token)
+    deactivate GoogleOAuth
+    AuthController -> GoogleOAuth: GET /userinfo\nส่ง access token
+    activate GoogleOAuth
+    GoogleOAuth -> AuthController: คืนค่า user profile (GoogleID, Email, Name)
+    deactivate GoogleOAuth
+
+    note right: ตรวจสอบ state parameter และจัดการ error (ไม่แสดงในที่นี้)
+
+    AuthController -> Service: Validate/Create User (GoogleID, Email, Name)
+    activate Service
+    Service -> Repository: ค้นหาผู้ใช้ด้วย GoogleID
+    activate Repository
+    Repository -> Database: SELECT id, google_id, email, name FROM users WHERE google_id = ?
+    activate Database
+    Database -->> Repository: คืนค่า user record (ถ้ามี)
+    deactivate Database
+    alt ผู้ใช้มีอยู่แล้ว
+        Repository -->> Service: คืนข้อมูลผู้ใช้ที่มีอยู่
+    else ผู้ใช้ใหม่
+        Repository -> Database: INSERT INTO users (google_id, email, name) VALUES (?,?,?)
+        activate Database
+        Database -->> Repository: ยืนยันการ insert (เช่น affected rows)
+        deactivate Database
+        Repository -> Service: ส่งผลลัพธ์การ insert (User Created)
+    end
+    deactivate Repository
+    Service -> AuthController: คืนค่า User Data (UserID, GoogleID, Email, Name)
+    deactivate Service
+
+    AuthController -> Middleware: Generate Session Token สำหรับ UserID
+    activate Middleware
+    Middleware -> Repository: บันทึก session (ถ้าจำเป็น)
+    activate Repository
+    Repository -> Database: INSERT INTO sessions (user_id, token, expiry) VALUES (?,?,?)
+    activate Database
+    Database -->> Repository: ยืนยันการ insert (เช่น affected rows)
+    deactivate Database
+    Repository -> Middleware: ส่งผลลัพธ์การ insert (Session Created)
+    deactivate Repository
+    Middleware -> AuthController: คืนค่า Session Token (หรือ set cookie)
+    deactivate Middleware
+
+    AuthController -> Router: ส่ง session token และข้อมูลผู้ใช้
+    deactivate AuthController
+
+else มี session อยู่แล้ว
+    Middleware -> Router: ดำเนินการต่อด้วย session ที่มีอยู่
+end
+
+deactivate Middleware
+deactivate Router
+
+Router -> Frontend: 200 OK (Login successful, Set-Cookie header)
+Frontend -> User: Redirect ไปยัง dashboard (ผ่าน client-side routing ของ Next.js)
+deactivate Frontend
+
+@enduml

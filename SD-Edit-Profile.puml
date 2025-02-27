@@ -1,0 +1,106 @@
+@startuml
+title Edit Profile Flow
+
+actor User
+participant "Frontend" as FE
+participant Router
+participant "Middleware" as MW
+participant "User Controller" as Controller
+participant "User Service" as Service
+participant "User Repository " as Repository
+participant "Database" as DB
+
+'Retrieve User Profile'
+activate FE
+User -> FE: clickEditProfileButton()
+FE -> Router: GET /api/users/profile
+activate Router
+Router -> MW: validateSession()
+activate MW
+MW -> Controller: getUserProfile(userID)
+activate Controller
+Controller -> Service: getUserProfile(userID)
+activate Service
+Service -> Repository: selectUserByID(userID)
+activate Repository
+Repository -> DB: SELECT id, username, email, ... FROM users WHERE id=?
+activate DB
+DB -->> Repository: userRecord
+deactivate DB
+Repository -->> Service: userRecord
+deactivate Repository
+Service -->> Controller: userRecord
+deactivate Service
+Controller -->> MW: success(userRecord)
+deactivate Controller
+MW -->> Router: successResponse(200, userRecord)
+deactivate MW
+Router -->> FE: successResponse(200, userRecord)
+deactivate Router
+FE -> User: displayEditProfileForm(userRecord)
+
+'Submit Edited Profile'
+User -> FE: submitEditProfileForm(updatedData, currentPassword)
+FE -> Router: POST /api/users/edit-profile {updatedData, currentPassword}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> Controller: editUserProfile(updatedData, currentPassword)
+activate Controller
+Controller -> Controller: validateUpdatedData()
+alt invalidData (4.1a)
+    Controller -> MW: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    MW -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    deactivate Controller
+    deactivate MW
+    deactivate Router
+else validData
+    Controller -> Service: editUserProfile(updatedData, currentPassword)
+    activate Service
+    Service -> Service: verifyCurrentPassword(userID, currentPassword)
+    alt passwordIncorrect (8.1a)
+        Service -> Controller: returnError("รหัสผ่านไม่ถูกต้อง")
+        deactivate Service
+        Controller -> MW: returnError("รหัสผ่านไม่ถูกต้อง")
+        MW -> Router: errorResponse(401, "รหัสผ่านไม่ถูกต้อง")
+        Router -> FE: errorResponse(401, "รหัสผ่านไม่ถูกต้อง")
+        deactivate Controller
+        deactivate MW
+        deactivate Router
+    else passwordCorrect
+        Service -> Repository: updateUserProfile(userID, updatedData)
+        activate Repository
+        Repository -> DB: UPDATE users SET ... WHERE id=:userID 'แก้อะไรได้บ้าง'
+        activate DB
+        DB -->> Repository: affectedRows
+        deactivate DB
+        alt updateFailed (9.1a)
+            Repository -> Service: returnError("แก้ไขบัญชีผู้ใช้ไม่สำเร็จ")
+            deactivate Repository
+            Service -> Controller: returnError("แก้ไขบัญชีผู้ใช้ไม่สำเร็จ")
+            deactivate Service
+            Controller -> MW: returnError("แก้ไขบัญชีผู้ใช้ไม่สำเร็จ")
+            MW -> Router: errorResponse(500, "แก้ไขบัญชีผู้ใช้ไม่สำเร็จ")
+            Router -> FE: errorResponse(500, "แก้ไขบัญชีผู้ใช้ไม่สำเร็จ")
+            deactivate Controller
+            deactivate MW
+            deactivate Router
+        else updateSuccess
+            Repository -> Service: success(updatedUserRecord)
+            deactivate Repository
+            Service -> Controller: success(updatedUserRecord)
+            deactivate Service
+            Controller -> MW: returnSuccess("แก้ไขบัญชีผู้ใช้สำเร็จ")
+            MW -> Router: successResponse(200, "แก้ไขบัญชีผู้ใช้สำเร็จ")
+            Router -> FE: successResponse(200, "แก้ไขบัญชีผู้ใช้สำเร็จ")
+            deactivate Controller
+            deactivate MW
+            deactivate Router
+            FE -> User: displayMessage("แก้ไขบัญชีผู้ใช้สำเร็จ")
+        end
+    end
+end
+deactivate FE
+
+@enduml
