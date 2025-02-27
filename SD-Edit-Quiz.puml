@@ -199,7 +199,7 @@ else Authorized
                 opt User edits quiz
                   User -> Frontend : handleEditQuizClick(quizId)
                   Frontend -->> User : Show quiz edit form
-                  User -> Frontend : handleSubmitQuizEdit(quizId, content, quiz_type, requirements)
+                  User -> Frontend : handleSubmitQuizEdit(quizId, content, quiz_type, questions, choices, answers)
                   Frontend -> Frontend : Validate quiz data
                   alt Invalid Data
                       Frontend -->> User : Show error "Invalid input"
@@ -216,13 +216,13 @@ else Authorized
                     else Authorized
                       Middleware -->> Router: Route to Router
                       deactivate Middleware
-                      Router -> QuizController: .EditQuiz(quizId, content, quiz_type, requirements)
+                      Router -> QuizController: .EditQuiz(quizId, content, quiz_type, questions, choices, answers)
                       activate QuizController
-                      QuizController -> QuizService: .EditQuiz(quizId, content, quiz_type, requirements)
+                      QuizController -> QuizService: .EditQuiz(quizId, content, quiz_type, questions, choices, answers)
                       activate QuizService
-                      QuizService -> QuizRepository: .EditQuiz(quizId, content, quiz_type, requirements)
+                      QuizService -> QuizRepository: .EditQuiz(quizId, content, quiz_type, questions, choices, answers)
                       activate QuizRepository
-                      QuizRepository -> Database: UPDATE quizzes SET content = @content, quiz_type = @quiz_type, requirements = @requirements WHERE id = @quiz_id
+                      QuizRepository -> Database: UPDATE quizzes SET content = @content, quiz_type = @quiz_type, questions = @questions, choices = @choices, answers = @answers WHERE id = @quiz_id
                       activate Database
                       Database -->> QuizRepository : Quiz, Error
                       deactivate Database

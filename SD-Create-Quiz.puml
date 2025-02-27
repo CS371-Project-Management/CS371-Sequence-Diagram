@@ -114,90 +114,87 @@ else Authorized
       
       opt User selects a course
         User -> Frontend: .handleCourseClick(courseId)
-        Frontend -> Router: GET /api/courses/{courseId}
-        activate Router
-        Router -> Middleware: .Use(Middleware)
-        activate Middleware
-        Middleware -> Middleware : .Verify()
-        alt Unauthorized (401 Unauthorized)
-          Middleware -->> Router: 401 Unauthorized
-          Router -->> Frontend: 401 Unauthorized
-          Frontend -->> User: Show error "Please log in"
-        else Authorized
-          Middleware -->> Router: Route to Router
-          deactivate Middleware
-          Router -> CourseController: .GetCourse(courseId)
-          activate CourseController
-          CourseController -> CourseService: .GetCourse(courseId)
-          activate CourseService
-          CourseService -> CourseRepository: .GetCourse(courseId)
-          activate CourseRepository
-          CourseRepository -> Database: SELECT * FROM courses WHERE id = @course_id
-          activate Database
-          Database -->> CourseRepository : Course, Error
-          deactivate Database
-          CourseRepository -->> CourseService : Course, Error
-          deactivate CourseRepository
-          CourseService -->> CourseController : Course, Error
-          deactivate CourseService
-          alt Error != Null
-            CourseController -->> Router : 500 Internal Server Error
-            Router -->> Frontend : 500 Internal Server Error
-            Frontend -->> User : Show error "Failed to fetch course"
-          else
-            CourseController -->> Router : 200 OK
-            Router -->> Frontend : 200 OK
-            Frontend -->> User : Show course details
-          end
-          deactivate CourseController
-          deactivate Router
-          User -> Frontend : handleCreateQuizClick(courseId)
-          Frontend -->> User : Show quiz creation form
-          User -> Frontend : handleSelectQuizType()
-          Frontend -->> User : Show quiz type options
-          User -> Frontend : handleSubmitQuizClick(courseId, content, quiz_type, requirements)
-          Frontend -> Frontend : Validate quiz data
-          alt Invalid Data
-            Frontend -->> User : Show error "Invalid input"
-          else Valid Data
-            Frontend -> Router: POST /api/quizzes
-            activate Router
-            Router -> Middleware: .Use(Middleware)
-            activate Middleware
-            Middleware -> Middleware : .Verify()
-            alt Unauthorized (401 Unauthorized)
-              Middleware -->> Router: 401 Unauthorized
-              Router -->> Frontend: 401 Unauthorized
-              Frontend -->> User: Show error "Please log in"
-            else Authorized
-              Middleware -->> Router: Route to Router
-              deactivate Middleware
-              Router -> QuizController: .CreateQuiz(courseId, content, quiz_type, requirements)
-              activate QuizController
-              QuizController -> QuizService: .CreateQuiz(courseId, content, quiz_type, requirements)
-              activate QuizService
-              QuizService -> QuizRepository: .CreateQuiz(courseId, content, quiz_type, requirements)
-              activate QuizRepository
-              QuizRepository -> Database: INSERT INTO quizzes (course_id, content, quiz_type, requirements) VALUES (@course_id, @content, @quiz_type, @requirements)
-              activate Database
-              Database -->> QuizRepository : Quiz, Error
-              deactivate Database
-              QuizRepository -->> QuizService : Quiz, Error
-              deactivate QuizRepository
-              QuizService -->> QuizController : Quiz, Error
-              deactivate QuizService
-              alt Error != Null
-                QuizController -->> Router : 500 Internal Server Error
-                Router -->> Frontend : 500 Internal Server Error
-                Frontend -->> User : Show error "Quiz creation failed"
-              else
-                QuizController -->> Router : 201 Created
-                Router -->> Frontend : 201 Created
-                Frontend -->> User : Show success "Quiz created"
-              end
-              deactivate QuizController
-              deactivate Router
+        Frontend -> User: Show course details
+        User -> Frontend : handleCreateQuizClick(courseId)
+        Frontend -->> User : Show quiz creation form
+        User -> Frontend : handleInputContent(content)
+
+        User -> Frontend : handleSelectQuizType(quiz_type)
+        alt quiz_type == single_choice
+          Frontend -->> User : Show single choice quiz form
+          User -> Frontend : handleInputQuestions(questions)
+          User -> Frontend : handleInputChoices(choices)
+          User -> Frontend : handleInputSingleAnswers(answers)
+        else quiz_type == multiple_choice
+          Frontend -->> User : Show multiple choice quiz form
+          User -> Frontend : handleInputQuestions(questions)
+          User -> Frontend : handleInputChoices(choices)
+          User -> Frontend : handleInputMultipleAnswers(answers) 
+        else quiz_type == ordering_choice
+          Frontend -->> User : Show ordering choice quiz form
+          User -> Frontend : handleInputQuestions(questions)
+          User -> Frontend : handleInputChoices(choices)
+          User -> Frontend : handleInputOrderingAnswers(answers)
+        else quiz_type == missing_word_choice
+          Frontend -->> User : Show missing word choice quiz form
+          User -> Frontend : handleInputQuestions(questions)
+          User -> Frontend : handleInputChoices(choices)
+          User -> Frontend : handleInputMissingWordAnswers(answers)
+        end
+        
+        User -> Frontend : handleSubmitQuizClick(courseId, content, quiz_type, questions, choices, answers)
+        Frontend -> Frontend : Validate quiz data
+        alt Invalid Data
+          Frontend -->> User : Show error "Invalid input"
+        else Valid Data
+          Frontend -> Router: POST /api/quizzes
+          activate Router
+          Router -> Middleware: .Use(Middleware)
+          activate Middleware
+          Middleware -> Middleware : .Verify()
+          alt Unauthorized (401 Unauthorized)
+            Middleware -->> Router: 401 Unauthorized
+            Router -->> Frontend: 401 Unauthorized
+            Frontend -->> User: Show error "Please log in"
+          else Authorized
+            Middleware -->> Router: Route to Router
+            deactivate Middleware
+            Router -> QuizController: .CreateQuiz(courseId, content, quiz_type, questions, choices, answers)
+            activate QuizController
+            QuizController -> QuizService: .CreateQuiz(courseId, content, quiz_type, questions, choices, answers)
+            activate QuizService
+            alt quiz_type == single_choice
+              QuizService -> QuizRepository: .CreateSingleChoiceQuiz(courseId, content, questions, choices, answers)
+              QuizRepository -> Database: INSERT INTO quizzes (course_id, content, type, questions, choices, answers) VALUES (@course_id, @content, @type, @questions, @choices, @answers)
+            else quiz_type == multiple_choice
+              QuizService -> QuizRepository: .CreateMultipleChoiceQuiz(courseId, content, questions, choices, answers)
+              QuizRepository -> Database: INSERT INTO quizzes (course_id, content, type, questions, choices, answers) VALUES (@course_id, @content, @type, @questions, @choices, @answers)
+            else quiz_type == ordering_choice
+              QuizService -> QuizRepository: .CreateOrderingChoiceQuiz(courseId, content, questions, choices, answers)
+              QuizRepository -> Database: INSERT INTO quizzes (course_id, content, type, questions, choices, answers) VALUES (@course_id, @content, @type, @questions, @choices, @answers)
+            else quiz_type == missing_word_choice
+              QuizService -> QuizRepository: .CreateMissingWordChoiceQuiz(courseId, content, questions, choices, answers)
+              QuizRepository -> Database: INSERT INTO quizzes (course_id, content, type, questions, choices, answers) VALUES (@course_id, @content, @type, @questions, @choices, @answers)
             end
+            activate Database
+
+            Database -->> QuizRepository : Quiz, Error
+            deactivate Database
+            QuizRepository -->> QuizService : Quiz, Error
+            deactivate QuizRepository
+            QuizService -->> QuizController : Quiz, Error
+            deactivate QuizService
+            alt Error != Null
+              QuizController -->> Router : 500 Internal Server Error
+              Router -->> Frontend : 500 Internal Server Error
+              Frontend -->> User : Show error "Quiz creation failed"
+            else
+              QuizController -->> Router : 201 Created
+              Router -->> Frontend : 201 Created
+              Frontend -->> User : Show success "Quiz created"
+            end
+            deactivate QuizController
+            deactivate Router
           end
         end
       end

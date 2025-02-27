@@ -1,5 +1,5 @@
-@startuml
-title Log-in with Google Account
+@startuml SequenceDiagram
+title Create Account with Google
 
 actor User
 participant Frontend
@@ -12,10 +12,10 @@ participant UserRepository
 participant Database
 
 activate Frontend
-User -> Frontend: คลิก "Login"
-Frontend -> User: แสดงตัวเลือกในการ Login
-User -> Frontend: คลิก "Login with Google"
-Frontend -> Router: GET /api/auth/google
+User -> Frontend: คลิก "Sign Up"
+Frontend -> User: แสดงตัวเลือกในการ Sign Up
+User -> Frontend: คลิก "Sign Up with Google"
+Frontend -> Router: GET /api/auth/google/signup
 activate Router
 
 Router -> Middleware: ตรวจสอบ session (Cookie/JWT)
@@ -33,36 +33,39 @@ alt ไม่มี session ที่ใช้งานอยู่
     activate UserController
     UserController -> GoogleOAuth: POST /token\nส่ง auth code, client_id, secret, redirect_uri
     activate GoogleOAuth
-    GoogleOAuth -> UserController: คืนค่า access token (และ id_token)
+    GoogleOAuth -->> UserController: คืนค่า access token (และ id_token)
     deactivate GoogleOAuth
-
     UserController -> GoogleOAuth: GET /userinfo\nส่ง access token
     activate GoogleOAuth
-    GoogleOAuth -> UserController: คืนค่า user profile (GoogleID, Email, Name)
+    GoogleOAuth -->> UserController: คืนค่า user profile (GoogleID, Email, Name)
     deactivate GoogleOAuth
 
     note right: ตรวจสอบ state parameter และจัดการ error (ไม่แสดงในที่นี้)
 
-    UserController -> UserService: Validate/Create User (GoogleID, Email, Name)
+    UserController -> UserService: ตรวจสอบว่ามีบัญชีอยู่หรือไม่
     activate UserService
     UserService -> UserRepository: ค้นหาผู้ใช้ด้วย GoogleID
     activate UserRepository
-    UserRepository -> Database: SELECT id, google_id, email, name FROM users WHERE google_id = ?
+    UserRepository -> Database: SELECT id FROM users WHERE google_id = ?
     activate Database
     Database -->> UserRepository: คืนค่า user record (ถ้ามี)
     deactivate Database
+    UserRepository -->> UserService: คืนค่าผู้ใช้ (ถ้ามี)
+    deactivate UserRepository
 
     alt ผู้ใช้มีอยู่แล้ว
-        UserRepository -->> UserService: คืนข้อมูลผู้ใช้ที่มีอยู่
+        UserService -->> UserController: แจ้งว่า user มีอยู่แล้ว (ให้ redirect ไป login)
     else ผู้ใช้ใหม่
+        UserService -> UserRepository: สร้างบัญชีใหม่
+        activate UserRepository
         UserRepository -> Database: INSERT INTO users (google_id, email, name) VALUES (?,?,?)
         activate Database
         Database -->> UserRepository: ยืนยันการ insert (เช่น affected rows)
         deactivate Database
-        UserRepository -> UserService: ส่งผลลัพธ์การ insert (User Created)
+        UserRepository -->> UserService: ส่งผลลัพธ์การ insert (User Created)
+        deactivate UserRepository
+        UserService -->> UserController: คืนค่า User Data (UserID, GoogleID, Email, Name)
     end
-    deactivate UserRepository
-    UserService -> UserController: คืนค่า User Data (UserID, GoogleID, Email, Name)
     deactivate UserService
 
     UserController -> Middleware: Generate Session Token สำหรับ UserID
@@ -73,23 +76,23 @@ alt ไม่มี session ที่ใช้งานอยู่
     activate Database
     Database -->> UserRepository: ยืนยันการ insert (เช่น affected rows)
     deactivate Database
-    UserRepository -> Middleware: ส่งผลลัพธ์การ insert (Session Created)
+    UserRepository -->> Middleware: ส่งผลลัพธ์การ insert (Session Created)
     deactivate UserRepository
-    Middleware -> UserController: คืนค่า Session Token (หรือ set cookie)
+    Middleware -->> UserController: คืนค่า Session Token (หรือ set cookie)
     deactivate Middleware
 
-    UserController -> Router: ส่ง session token และข้อมูลผู้ใช้
+    UserController -->> Router: ส่ง session token และข้อมูลผู้ใช้
     deactivate UserController
 
 else มี session อยู่แล้ว
-    Middleware -> Router: ดำเนินการต่อด้วย session ที่มีอยู่
+    Middleware -->> Router: ดำเนินการต่อด้วย session ที่มีอยู่
 end
 
 deactivate Middleware
 deactivate Router
 
-Router -> Frontend: 200 OK (Login successful, Set-Cookie header)
-Frontend -> User: Redirect ไปยัง dashboard\n(ผ่าน client-side routing ของ Next.js)
+Router -->> Frontend: 200 OK (Signup successful, Set-Cookie header)
+Frontend -> User: Redirect ไปยัง dashboard (ผ่าน client-side routing ของ Next.js)
 deactivate Frontend
 
 @enduml
