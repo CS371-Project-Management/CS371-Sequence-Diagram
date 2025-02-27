@@ -2,13 +2,23 @@
 title Create Quiz
 
 actor User
-participant Frontend
-participant Router
-participant Middleware
-participant Controller
-participant Service
-participant Repository
-participant Database
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+
+participant ": ClassController" as ClassController
+participant ": ClassService" as ClassService
+participant ": ClassRepository" as ClassRepository
+
+participant ": CourseController" as CourseController
+participant ": CourseService" as CourseService
+participant ": CourseRepository" as CourseRepository
+
+participant ": QuizController" as QuizController
+participant ": QuizService" as QuizService
+participant ": QuizRepository" as QuizRepository
+
+database Database
 
 activate Frontend
 
@@ -18,54 +28,43 @@ activate Router
 
 Router -> Middleware: .Use(Middleware)
 activate Middleware
-Middleware -> Service: .GetSessionToken()
-activate Service
-Service -> Repository: .GetSessionToken()
-activate Repository
-Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-activate Database
-Database -->> Repository: SessionToken
-deactivate Database
-Repository -->> Service: SessionToken
-deactivate Repository
-Service -->> Middleware: SessionToken
-deactivate Service
+Middleware -> Middleware : .Verify()
 
 alt Unauthorized (401 Unauthorized)
   Middleware -->> Router: 401 Unauthorized
   Router -->> Frontend: 401 Unauthorized
-  Frontend -->> User: Show error "Please log idn"
+  Frontend -->> User: Show error "Please log in"
 else Authorized
-  Middleware -->> Router: Proceed
+  Middleware -->> Router: Route to Router
   deactivate Middleware
-  Router -> Controller: .GetAllClasses()
-  activate Controller
-  Controller -> Service: .GetAllClasses()
-  activate Service
-  Service -> Repository: .GetAllClasses()
-  activate Repository
-  Repository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  Router -> ClassController: .GetAllClasses()
+  activate ClassController
+  ClassController -> ClassService: .GetAllClasses()
+  activate ClassService
+  ClassService -> ClassRepository: .GetAllClasses()
+  activate ClassRepository
+  ClassRepository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
   activate Database
-  Database -->> Repository : Classes
+  Database -->> ClassRepository : Classes, Error
   deactivate Database
-  Repository -->> Service : Classes
-  deactivate Repository
-  Service -->> Controller : Classes
-  deactivate Service
-  alt Classes == Error
-    Controller -->> Router : 500 Internal Server Error
+  ClassRepository -->> ClassService : Classes, Error
+  deactivate ClassRepository
+  ClassService -->> ClassController : Classes, Error
+  deactivate ClassService
+  alt Error != Null
+    ClassController -->> Router : 500 Internal Server Error
     Router -->> Frontend : 500 Internal Server Error
     Frontend -->> User : Show error "Failed to fetch classes"
   else Classes == Null
-    Controller -->> Router : 404 Not Found
+    ClassController -->> Router : 404 Not Found
     Router -->> Frontend : 404 Not Found
     Frontend -->> User : Show message "Class not found"
   else
-    Controller -->> Router : 200 OK
+    ClassController -->> Router : 200 OK
     Router -->> Frontend : 200 OK
     Frontend -->> User : Show classes list
   end
-  deactivate Controller
+  deactivate ClassController
   deactivate Router
 
   opt User selects a class
@@ -75,53 +74,42 @@ else Authorized
 
     Router -> Middleware: .Use(Middleware)
     activate Middleware
-    Middleware -> Service: .GetSessionToken()
-    activate Service
-    Service -> Repository: .GetSessionToken()
-    activate Repository
-    Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-    activate Database
-    Database -->> Repository: SessionToken
-    deactivate Database
-    Repository -->> Service: SessionToken
-    deactivate Repository
-    Service -->> Middleware: SessionToken
-    deactivate Service
+    Middleware -> Middleware : .Verify()
     alt Unauthorized (401 Unauthorized)
       Middleware -->> Router: 401 Unauthorized
       Router -->> Frontend: 401 Unauthorized
       Frontend -->> User: Show error "Please log idn"
     else Authorized
-      Middleware -->> Router: Proceed
+      Middleware -->> Router: Route to Router
       deactivate Middleware
-      Router -> Controller: .GetAllCourses(classId)
-      activate Controller
-      Controller -> Service: .GetAllCourses(classId)
-      activate Service
-      Service -> Repository: .GetAllCourses(classId)
-      activate Repository
-      Repository -> Database: SELECT * FROM courses WHERE class_id = @class_id
+      Router -> CourseController: .GetAllCourses(classId)
+      activate CourseController
+      CourseController -> CourseService: .GetAllCourses(classId)
+      activate CourseService
+      CourseService -> CourseRepository: .GetAllCourses(classId)
+      activate CourseRepository
+      CourseRepository -> Database: SELECT * FROM courses WHERE class_id = @class_id
       activate Database
-      Database -->> Repository : Courses
+      Database -->> CourseRepository : Courses, Error
       deactivate Database
-      Repository -->> Service : Courses
-      deactivate Repository
-      Service -->> Controller : Courses
-      deactivate Service
-      alt Courses == Error
-        Controller -->> Router : 500 Internal Server Error
+      CourseRepository -->> CourseService : Courses, Error
+      deactivate CourseRepository
+      CourseService -->> CourseController : Courses, Error
+      deactivate CourseService
+      alt Error != Null
+        CourseController -->> Router : 500 Internal Server Error
         Router -->> Frontend : 500 Internal Server Error
         Frontend -->> User : Show error "Failed to fetch courses"
       else Courses == Null
-        Controller -->> Router : 404 Not Found
+        CourseController -->> Router : 404 Not Found
         Router -->> Frontend : 404 Not Found
         Frontend -> User: Show message "Course not found"
       else
-        Controller -->> Router : 200 OK
+        CourseController -->> Router : 200 OK
         Router -->> Frontend : 200 OK
         Frontend -->> User : Show courses list
       end
-      deactivate Controller
+      deactivate CourseController
       deactivate Router
       
       opt User selects a course
@@ -130,49 +118,38 @@ else Authorized
         activate Router
         Router -> Middleware: .Use(Middleware)
         activate Middleware
-        Middleware -> Service: .GetSessionToken()
-        activate Service
-        Service -> Repository: .GetSessionToken()
-        activate Repository
-        Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-        activate Database
-        Database -->> Repository: SessionToken
-        deactivate Database
-        Repository -->> Service: SessionToken
-        deactivate Repository
-        Service -->> Middleware: SessionToken
-        deactivate Service
+        Middleware -> Middleware : .Verify()
         alt Unauthorized (401 Unauthorized)
           Middleware -->> Router: 401 Unauthorized
           Router -->> Frontend: 401 Unauthorized
           Frontend -->> User: Show error "Please log in"
         else Authorized
-          Middleware -->> Router: Proceed
+          Middleware -->> Router: Route to Router
           deactivate Middleware
-          Router -> Controller: .GetCourse(courseId)
-          activate Controller
-          Controller -> Service: .GetCourse(courseId)
-          activate Service
-          Service -> Repository: .GetCourse(courseId)
-          activate Repository
-          Repository -> Database: SELECT * FROM courses WHERE id = @course_id
+          Router -> CourseController: .GetCourse(courseId)
+          activate CourseController
+          CourseController -> CourseService: .GetCourse(courseId)
+          activate CourseService
+          CourseService -> CourseRepository: .GetCourse(courseId)
+          activate CourseRepository
+          CourseRepository -> Database: SELECT * FROM courses WHERE id = @course_id
           activate Database
-          Database -->> Repository : Course
+          Database -->> CourseRepository : Course, Error
           deactivate Database
-          Repository -->> Service : Course
-          deactivate Repository
-          Service -->> Controller : Course
-          deactivate Service
-          alt Course == Error
-            Controller -->> Router : 500 Internal Server Error
+          CourseRepository -->> CourseService : Course, Error
+          deactivate CourseRepository
+          CourseService -->> CourseController : Course, Error
+          deactivate CourseService
+          alt Error != Null
+            CourseController -->> Router : 500 Internal Server Error
             Router -->> Frontend : 500 Internal Server Error
             Frontend -->> User : Show error "Failed to fetch course"
           else
-            Controller -->> Router : 200 OK
+            CourseController -->> Router : 200 OK
             Router -->> Frontend : 200 OK
             Frontend -->> User : Show course details
           end
-          deactivate Controller
+          deactivate CourseController
           deactivate Router
           User -> Frontend : handleCreateQuizClick(courseId)
           Frontend -->> User : Show quiz creation form
@@ -187,49 +164,38 @@ else Authorized
             activate Router
             Router -> Middleware: .Use(Middleware)
             activate Middleware
-            Middleware -> Service: .GetSessionToken()
-            activate Service
-            Service -> Repository: .GetSessionToken()
-            activate Repository
-            Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-            activate Database
-            Database -->> Repository: SessionToken
-            deactivate Database
-            Repository -->> Service: SessionToken
-            deactivate Repository
-            Service -->> Middleware: SessionToken
-            deactivate Service
+            Middleware -> Middleware : .Verify()
             alt Unauthorized (401 Unauthorized)
               Middleware -->> Router: 401 Unauthorized
               Router -->> Frontend: 401 Unauthorized
               Frontend -->> User: Show error "Please log in"
             else Authorized
-              Middleware -->> Router: Proceed
+              Middleware -->> Router: Route to Router
               deactivate Middleware
-              Router -> Controller: .CreateQuiz(courseId, content, quiz_type, requirements)
-              activate Controller
-              Controller -> Service: .CreateQuiz(courseId, content, quiz_type, requirements)
-              activate Service
-              Service -> Repository: .CreateQuiz(courseId, content, quiz_type, requirements)
-              activate Repository
-              Repository -> Database: INSERT INTO quizzes (course_id, content, quiz_type, requirements) VALUES (@course_id, @content, @quiz_type, @requirements)
+              Router -> QuizController: .CreateQuiz(courseId, content, quiz_type, requirements)
+              activate QuizController
+              QuizController -> QuizService: .CreateQuiz(courseId, content, quiz_type, requirements)
+              activate QuizService
+              QuizService -> QuizRepository: .CreateQuiz(courseId, content, quiz_type, requirements)
+              activate QuizRepository
+              QuizRepository -> Database: INSERT INTO quizzes (course_id, content, quiz_type, requirements) VALUES (@course_id, @content, @quiz_type, @requirements)
               activate Database
-              Database -->> Repository : Quiz
+              Database -->> QuizRepository : Quiz, Error
               deactivate Database
-              Repository -->> Service : Quiz
-              deactivate Repository
-              Service -->> Controller : Quiz
-              deactivate Service
-              alt Quiz == Error
-                Controller -->> Router : 500 Internal Server Error
+              QuizRepository -->> QuizService : Quiz, Error
+              deactivate QuizRepository
+              QuizService -->> QuizController : Quiz, Error
+              deactivate QuizService
+              alt Error != Null
+                QuizController -->> Router : 500 Internal Server Error
                 Router -->> Frontend : 500 Internal Server Error
                 Frontend -->> User : Show error "Quiz creation failed"
               else
-                Controller -->> Router : 201 Created
+                QuizController -->> Router : 201 Created
                 Router -->> Frontend : 201 Created
                 Frontend -->> User : Show success "Quiz created"
               end
-              deactivate Controller
+              deactivate QuizController
               deactivate Router
             end
           end

@@ -2,13 +2,23 @@
 title Analyze Log
 
 actor User
-participant Frontend
-participant Router
-participant Middleware
-participant Controller
-participant Service
-participant Repository
-participant Database
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+
+participant ": ClassController" as ClassController
+participant ": ClassService" as ClassService
+participant ": ClassRepository" as ClassRepository
+
+participant ": CourseController" as CourseController
+participant ": CourseService" as CourseService
+participant ": CourseRepository" as CourseRepository
+
+participant ": LogController" as LogController
+participant ": LogService" as LogService
+participant ": LogRepository" as LogRepository
+
+database Database
 
 activate Frontend
 
@@ -17,53 +27,42 @@ activate Router
 
 Router -> Middleware: .Use(Middleware)
 activate Middleware
-Middleware -> Service: .GetSessionToken()
-activate Service
-Service -> Repository: .GetSessionToken()
-activate Repository
-Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-activate Database
-Database -->> Repository: SessionToken
-deactivate Database
-Repository -->> Service: SessionToken
-deactivate Repository
-Service -->> Middleware: SessionToken
-deactivate Service
+Middleware -> Middleware : .Verify()
 alt Unauthorized (401 Unauthorized)
   Middleware -->> Router: 401 Unauthorized
   Router -->> Frontend: 401 Unauthorized
   Frontend -->> User: Show error "Please log in"
 else Authorized
-  Middleware -->> Router: Proceed
+  Middleware -->> Router: Route to Router
   deactivate Middleware
-  Router -> Controller: .GetAllClasses()
-  activate Controller
-  Controller -> Service: .GetAllClasses()
-  activate Service
-  Service -> Repository: .GetAllClasses()
-  activate Repository
-  Repository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  Router -> ClassController: .GetAllClasses()
+  activate ClassController
+  ClassController -> ClassService: .GetAllClasses()
+  activate ClassService
+  ClassService -> ClassRepository: .GetAllClasses()
+  activate ClassRepository
+  ClassRepository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
   activate Database
-  Database -->> Repository : Classes
+  Database -->> ClassRepository : Classes, Error
   deactivate Database
-  Repository -->> Service : Classes
-  deactivate Repository
-  Service -->> Controller : Classes
-  deactivate Service
-  alt Classes == Error
-    Controller -->> Router : 500 Internal Server Error
+  ClassRepository -->> ClassService : Classes, Error
+  deactivate ClassRepository
+  ClassService -->> ClassController : Classes, Error
+  deactivate ClassService
+  alt Error != Null
+    ClassController -->> Router : 500 Internal Server Error
     Router -->> Frontend : 500 Internal Server Error
     Frontend -->> User : Show error "Failed to fetch classes"
   else Classes == Null
-    Controller -->> Router : 404 Not Found
+    ClassController -->> Router : 404 Not Found
     Router -->> Frontend : 404 Not Found
     Frontend -->> User : Show message "Class not found"
   else
-    Controller -->> Router : 200 OK
+    ClassController -->> Router : 200 OK
     Router -->> Frontend : 200 OK
     Frontend -->> User : Show classes list
   end
-  deactivate Controller
+  deactivate ClassController
   deactivate Router
 
   opt User selects a class
@@ -73,53 +72,42 @@ else Authorized
 
     Router -> Middleware: .Use(Middleware)
     activate Middleware
-    Middleware -> Service: .GetSessionToken()
-    activate Service
-    Service -> Repository: .GetSessionToken()
-    activate Repository
-    Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-    activate Database
-    Database -->> Repository: SessionToken
-    deactivate Database
-    Repository -->> Service: SessionToken
-    deactivate Repository
-    Service -->> Middleware: SessionToken
-    deactivate Service
+    Middleware -> Middleware : .Verify()
     alt Unauthorized (401 Unauthorized)
       Middleware -->> Router: 401 Unauthorized
       Router -->> Frontend: 401 Unauthorized
       Frontend -->> User: Show error "Please log in"
     else Authorized
-      Middleware -->> Router: Proceed
+      Middleware -->> Router: Route to Router
       deactivate Middleware
-      Router -> Controller: .GetAllCourses(classId)
-      activate Controller
-      Controller -> Service: .GetAllCourses(classId)
-      activate Service
-      Service -> Repository: .GetAllCourses(classId)
-      activate Repository
-      Repository -> Database: SELECT * FROM courses WHERE class_id = @class_id
+      Router -> CourseController: .GetAllCourses(classId)
+      activate CourseController
+      CourseController -> CourseService: .GetAllCourses(classId)
+      activate CourseService
+      CourseService -> CourseRepository: .GetAllCourses(classId)
+      activate CourseRepository
+      CourseRepository -> Database: SELECT * FROM courses WHERE class_id = @class_id
       activate Database
-      Database -->> Repository : Courses
+      Database -->> CourseRepository : Courses, Error
       deactivate Database
-      Repository -->> Service : Courses
-      deactivate Repository
-      Service -->> Controller : Courses
-      deactivate Service
-      alt Courses == Error
-        Controller -->> Router : 500 Internal Server Error
+      CourseRepository -->> CourseService : Courses, Error
+      deactivate CourseRepository
+      CourseService -->> CourseController : Courses, Error
+      deactivate CourseService
+      alt Error != Null
+        CourseController -->> Router : 500 Internal Server Error
         Router -->> Frontend : 500 Internal Server Error
         Frontend -->> User : Show error "Failed to fetch courses"
       else Courses == Null
-        Controller -->> Router : 404 Not Found
+        CourseController -->> Router : 404 Not Found
         Router -->> Frontend : 404 Not Found
         Frontend -->> User : Show message "Course not found"
       else
-        Controller -->> Router : 200 OK
+        CourseController -->> Router : 200 OK
         Router -->> Frontend : 200 OK
         Frontend -->> User : Show courses list
       end
-      deactivate Controller
+      deactivate CourseController
       deactivate Router
 
       opt User selects a course
@@ -132,50 +120,39 @@ else Authorized
 
         Router -> Middleware: .Use(Middleware)
         activate Middleware
-        Middleware -> Service: .GetSessionToken()
-        activate Service
-        Service -> Repository: .GetSessionToken()
-        activate Repository
-        Repository -> Database: SELECT session_token FROM sessions WHERE user_id = @user_id
-        activate Database
-        Database -->> Repository: SessionToken
-        deactivate Database
-        Repository -->> Service: SessionToken
-        deactivate Repository
-        Service -->> Middleware: SessionToken
-        deactivate Service
+        Middleware -> Middleware : .Verify()
         alt Unauthorized (401 Unauthorized)
           Middleware -->> Router: 401 Unauthorized
           Router -->> Frontend: 401 Unauthorized
           Frontend -->> User: Show error "Please log idn"
         else Authorized
-          Middleware -->> Router: Proceed
+          Middleware -->> Router: Route to Router
           deactivate Middleware
-          Router -> Controller: .GetAllLogs(courseId,logType)
-          activate Controller
-          Controller -> Service: .GetAllLogs(courseId,logType)
-          activate Service
-          Service -> Repository: .GetAllLogs(courseId,logType)
-          activate Repository
-          Repository -> Database: SELECT * FROM logs WHERE course_id = @course_id AND type = @log_type
+          Router -> LogController: .GetAllLogs(courseId,logType)
+          activate LogController
+          LogController -> LogService: .GetAllLogs(courseId,logType)
+          activate LogService
+          LogService -> LogRepository: .GetAllLogs(courseId,logType)
+          activate LogRepository
+          LogRepository -> Database: SELECT * FROM logs WHERE course_id = @course_id AND type = @log_type
           activate Database
-          Database -->> Repository : Logs
+          Database -->> LogRepository : Logs, Error
           deactivate Database
-          Repository -->> Service : Logs
-          deactivate Repository
-          Service -->> Controller : Logs
-          deactivate Service
-          alt Logs == Error
-            Controller -->> Router : 500 Internal Server Error
+          LogRepository -->> LogService : Logs, Error
+          deactivate LogRepository
+          LogService -->> LogController : Logs, Error
+          deactivate LogService
+          alt Error != Null
+            LogController -->> Router : 500 Internal Server Error
             Router -->> Frontend : 500 Internal Server Error
             Frontend -->> User : Show error "Failed to fetch logs"
           else Logs == Null
-            Controller -->> Router : 404 Not Found
+            LogController -->> Router : 404 Not Found
             Router -->> Frontend : 404 Not Found
             Frontend -->> User : Show message "Log not found"
           else
-            Controller -> Controller : Calculate statistics
-            Controller -->> Router : 200 OK
+            LogController -> LogController : Calculate statistics
+            LogController -->> Router : 200 OK
             Router -->> Frontend : 200 OK
             Frontend -->> User : Show logs list
           end
