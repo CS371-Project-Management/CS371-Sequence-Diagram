@@ -10,8 +10,6 @@ participant ": ClassController" as ClassController
 participant ": ClassService" as ClassService
 participant ": ClassRepository" as ClassRepository
 
-participant ": LogController" as LogController
-participant ": LogService" as LogService
 participant ": LogRepository" as LogRepository
 
 database Database
@@ -128,26 +126,51 @@ else Authorized
           ClassService -> ClassRepository: .DeleteUser(userId)
           activate ClassRepository
           ClassRepository -> Database: DELETE FROM user_classes WHERE user_id = @user_id
+          activate Database
           Database -->> ClassRepository : Deleted, Error
+          deactivate Database
           ClassRepository -> Database: DELETE FROM user_courses WHERE user_id = @user_id
+          activate Database
           Database -->> ClassRepository : Deleted, Error
-          ClassRepository -> Database: DELETE FROM quiz_histories WHERE user_id = @user_id
-          Database -->> ClassRepository : Deleted, Error
-          ClassRepository -> Database: DELETE FROM choice_histories WHERE user_id = @user_id
-          Database -->> ClassRepository : Deleted, Error
-          ClassRepository -> Database: DELETE FROM ordering_histories WHERE user_id = @user_id
-          Database -->> ClassRepository : Deleted, Error
-          ClassRepository -> Database: DELETE FROM missing_words_histories WHERE user_id = @user_id
-          Database -->> ClassRepository : Deleted, Error
-          ClassRepository -->> ClassService : User deleted
-          deactivate ClassRepository
-          ClassService -->> ClassController : User deleted
-          deactivate ClassService
-          ClassController -->> Router : 200 OK
-          Router -->> Frontend : 200 OK
-          Frontend -->> User : Show success "User deleted"
 
-        
+          opt Error == Null
+            ClassRepository -->> ClassService : Deleted, Error
+            deactivate Database
+            deactivate ClassRepository
+
+            ClassService -> LogRepository: .DeleteUserLogs(userId)
+            activate LogRepository
+            LogRepository -> Database: DELETE FROM quiz_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -> Database: DELETE FROM choice_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -> Database: DELETE FROM ordering_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -> Database: DELETE FROM missing_words_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -->> ClassService : Deleted, Error
+            deactivate LogRepository
+            ClassService -->> ClassController : Deleted, Error
+            deactivate ClassService
+          end
+
+          alt Error != Null
+            ClassController -->> Router: 500 Internal Server Error
+            Router -->> Frontend: 500 Internal Server Error
+            Frontend -->> User: Show error "Failed to Delete user"
+          else
+            ClassController -->> Router: 200 OK
+            Router -->> Frontend: 200 OK
+            Frontend -->> User: Show message "Delete User successfully"
+          end
         end
       end
     end
