@@ -1,0 +1,146 @@
+@startuml SequenceDiagram
+title Join Public Class
+actor User
+
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+
+Frontend -> Router: GET /api/classes/not-enrolled/{user-id}
+activate Router
+
+Router -> Middleware: .Use(Middleware)
+activate Middleware
+Middleware -> Middleware : .Verify()
+
+alt Unauthorized (401 Unauthorized)
+  Middleware -->> Router: 401 Unauthorized
+  Router -->> Frontend: 401 Unauthorized
+  Frontend -->> User: Show error "Please log in"
+else Authorized
+  Middleware -->> Router: Route to Router
+  deactivate Middleware
+  Router -> ClassController: .GetAllPublicClasses(user-id)
+  activate ClassController
+  ClassController -> ClassService: .GetAllPublicClasses(user-id)
+  activate ClassService
+  ClassService -> ClassRepository: .GetAllPublicClasses(user-id)
+  activate ClassRepository
+  ClassRepository -> Database: SELECT * FROM classes WHERE is_public = true AND id NOT IN (SELECT class_id FROM enrollments WHERE user_id = @user_id)
+  activate Database
+  Database -->> ClassRepository : Classes, Error
+  deactivate Database
+  ClassRepository -->> ClassService : Classes, Error
+  deactivate ClassRepository
+  ClassService -->> ClassController : Classes, Error
+  deactivate ClassService
+  alt Error != Null
+    ClassController -->> Router : 500 Internal Server Error
+    Router -->> Frontend : 500 Internal Server Error
+    Frontend -->> User : Show error "Failed to fetch classes"
+  else Classes == Null
+    ClassController -->> Router : 404 Not Found
+    Router -->> Frontend : 404 Not Found
+    Frontend -->> User : Show message "No public class available"
+  else
+    ClassController -->> Router : 200 OK
+    Router -->> Frontend : 200 OK
+    Frontend -->> User : Show public classes
+  end
+  deactivate ClassController
+  deactivate Router
+  opt User Select Class
+    User -> Frontend : .handlePublicClassClick(class_id)
+    Frontend -> Router : GET /api/classes/{class-id}
+    activate Router
+
+    Router -> Middleware : .Use(Middleware)
+    activate Middleware
+    Middleware -> Middleware : .Verify()
+
+    alt Unauthorized (401 Unauthorized)
+      Middleware -->> Router: 401 Unauthorized
+      Router -->> Frontend: 401 Unauthorized
+      Frontend -->> User: Show error "Please log in"
+    else
+      Middleware -> Router: Route to Router
+      deactivate Middleware
+      Router -> ClassController: .GetClass(class-id)
+      activate ClassController
+      ClassController -> ClassService: .GetClass(class-id)
+      activate ClassService
+      ClassService -> ClassRepository: .GetClass(class-id)
+      activate ClassRepository
+      ClassRepository -> Database: SELECT * FROM classes WHERE id = @class_id
+      activate Database
+      Database -->> ClassRepository : Class, Error
+      deactivate Database
+      ClassRepository -->> ClassService : Class, Error
+      deactivate ClassRepository
+      ClassService -->> ClassController : Class, Error
+      deactivate ClassService
+      alt Error != Null
+        ClassController -->> Router : 500 Internal Server Error
+        Router -->> Frontend : 500 Internal Server Error
+        Frontend -->> User : Show error "Failed to fetch class"
+      else Class == Null
+        ClassController -->> Router : 404 Not Found
+        Router -->> Frontend : 404 Not Found
+        Frontend -->> User : Show message "Class not found"
+      else
+        ClassController -->> Router : 200 OK
+        Router -->> Frontend : 200 OK
+        Frontend -->> User : Show class details
+      end
+      deactivate ClassController
+      deactivate Router
+      opt User join class
+        User -> Frontend : .handleJoinClassClick(class_id)
+        Frontend -> Router : POST /api/enrollments
+        activate Router
+
+        Router -> Middleware : .Use(Middleware)
+        activate Middleware
+        Middleware -> Middleware : .Verify()
+
+        alt Unauthorized (401 Unauthorized)
+          Middleware -->> Router: 401 Unauthorized
+          Router -->> Frontend: 401 Unauthorized
+          Frontend -->> User: Show error "Please log in"
+        else Authorized
+          Middleware -->> Router: Route to Router
+          deactivate Middleware
+          Router -> EnrollmentController: .CreateEnrollment(user-id, class-id)
+          activate EnrollmentController
+          EnrollmentController -> EnrollmentService: .CreateEnrollment(user-id, class-id)
+          activate EnrollmentService
+          EnrollmentService -> EnrollmentRepository: .CreateEnrollment(user-id, class-id)
+          activate EnrollmentRepository
+          EnrollmentRepository -> Database: INSERT INTO user_classes (user_id, class_id) VALUES (@user_id, @class_id)
+          Database -->> EnrollmentRepository : user_classes, Error
+          EnrollmentRepository -> Database: INSERT INTO user_courses (user_id, class_id) VALUES (@user_id, @class_id)
+          Database -->> EnrollmentRepository : user_courses, Error
+          activate Database
+          deactivate Database
+          EnrollmentRepository -->> EnrollmentService : Enrollment, Error
+          deactivate EnrollmentRepository
+          EnrollmentService -->> EnrollmentController : Enrollment, Error
+          deactivate EnrollmentService
+          alt Error != Null
+            EnrollmentController -->> Router : 500 Internal Server Error
+            Router -->> Frontend : 500 Internal Server Error
+            Frontend -->> User : Show error "Failed to join class"
+          else
+            EnrollmentController -->> Router : 201 Created
+            Router -->> Frontend : 201 Created
+            Frontend -->> User : Show message "Joined class successfully"
+          end
+        end
+      end
+    end
+  end
+end
+
+database Database
+
+@enduml

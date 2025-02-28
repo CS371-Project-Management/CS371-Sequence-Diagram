@@ -78,7 +78,7 @@ else Authorized
     alt Unauthorized (401 Unauthorized)
       Middleware -->> Router: 401 Unauthorized
       Router -->> Frontend: 401 Unauthorized
-      Frontend -->> User: Show error "Please log idn"
+      Frontend -->> User: Show error "Please log in"
     else Authorized
       Middleware -->> Router: Route to Router
       deactivate Middleware
