@@ -63,7 +63,7 @@ else Authorized
   else
     EnrollmentController -->> Router : 200 OK
     Router -->> Frontend : 200 OK
-    Frontend -->> User : Show susccess "Joined class"
+    Frontend -->> User : Show success "Joined class"
   end
   deactivate EnrollmentController
   deactivate Router
