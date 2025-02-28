@@ -1,101 +1,130 @@
 @startuml
 title View Progression
 
+'line 104 นึก query ดึง Progression ไม่ออก'
+
 actor "ผู้ใช้" as User
-'--- Phase 1: ดึงข้อมูล Class ---
 participant "Frontend" as FE
 participant "Router" as Router
 participant "Middleware" as MW
+
+' --- Class Module ---
 participant "Class Controller" as ClassCtrl
 participant "Class Service" as ClassServ
 participant "Class Repository" as ClassRepo
+
+' --- Course Module ---
 participant "Course Controller" as CourseCtrl
 participant "Course Service" as CourseServ
 participant "Course Repository" as CourseRepo
+
+' --- Progress Module ---
+participant "Progress Controller" as ProgressCtrl
+participant "Progress Service" as ProgressServ
+participant "Progress Repository" as ProgressRepo
+
 participant "Database" as DB
 
-' ระบบดึงข้อมูล class ที่ผู้ใช้เข้าร่วม
-FE -> Router: GET /api/classes?admin=true
+'================= Phase 1: ดึงข้อมูล Class ที่ผู้ใช้เข้าร่วม =================
+FE -> Router: GET /api/classes?joined=true
 activate Router
 Router -> MW: validateSession()
 activate MW
-MW -> Router: session validated
+MW -> ClassCtrl: getJoinedClasses(userID)
 deactivate MW
-Router -> ClassCtrl: getAdminClasses(userID)
 activate ClassCtrl
-ClassCtrl -> ClassServ: getAdminClasses(userID)
+ClassCtrl -> ClassServ: getJoinedClasses(userID)
 activate ClassServ
-ClassServ -> ClassRepo: selectClassesByAdmin(userID)
+ClassServ -> ClassRepo: selectJoinedClasses(userID)
 activate ClassRepo
-ClassRepo -> DB: SELECT id, name, description, privacy FROM classes WHERE owner_id = ?
+ClassRepo -> DB: SELECT id, name, description FROM classes WHERE user_id = ?
 activate DB
-DB --> ClassRepo: classList (or emptyList)
+DB --> ClassRepo: [classList]
 deactivate DB
-alt หากพบข้อมูล class
-    ClassRepo --> ClassServ: classList
-    ClassServ --> ClassCtrl: classList
-    ClassCtrl --> Router: successResponse(200, classList)   ' (2a.1 และ 2a.2)
-else หากไม่พบข้อมูล class
-    ClassRepo --> ClassServ: emptyList
-    ClassServ --> ClassCtrl: returnError("ไม่พบข้อมูล class")
-    ClassCtrl --> Router: errorResponse(404, "ไม่พบข้อมูล class")   ' (2b.1 และ 2b.2)
-end
-deactivate ClassRepo
-deactivate ClassServ
+alt ไม่พบข้อมูล class
+    ClassRepo --> ClassServ: []
+    ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
+    ClassCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล class")
+    FE -> User: "ไม่พบข้อมูล class"
+else พบข้อมูล class
+    ClassRepo --> ClassServ: [classList]
+    ClassServ --> ClassCtrl: [classList]
+    ClassCtrl -> Router: successResponse(200, classList)
+    Router --> FE: successResponse(200, classList)
+    FE -> User: "แสดงรายการ class"
 deactivate ClassCtrl
-Router --> FE: response (classList or error)
 deactivate Router
-FE -> User: แสดงผล class ทั้งหมด
 
-'--- Phase 2: ดึงข้อมูล Course ---
-
-' ผู้ใช้เลือก class ที่ต้องการ
+'================= Phase 2: ดึงข้อมูล Course ภายใน Class ที่เลือก =================
 User -> FE: เลือก class ที่ต้องการ
-FE -> Router: GET /api/courses?classID={classID}
+FE -> Router: GET /api/courses?classID={selectedClassID}
 activate Router
 Router -> MW: validateRequest()
 activate MW
-MW -> Router: request validated
+MW -> CourseCtrl: getCourses(selectedClassID)
 deactivate MW
-Router -> CourseCtrl: getCourses(classID)
 activate CourseCtrl
-CourseCtrl -> CourseServ: getCourses(classID)
+CourseCtrl -> CourseServ: getCourses(selectedClassID)
 activate CourseServ
-CourseServ -> CourseRepo: selectCoursesByClass(classID)
+CourseServ -> CourseRepo: selectCoursesByClass(selectedClassID)
 activate CourseRepo
 CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
 activate DB
-DB --> CourseRepo: courseList (or emptyList)
+DB --> CourseRepo: [courseList]
 deactivate DB
-alt หากพบข้อมูล course
-    CourseRepo --> CourseServ: courseList
-    CourseServ --> CourseCtrl: courseList
-    CourseCtrl --> Router: successResponse(200, courseList)   ' (5a.1 และ 5a.2)
-else หากไม่พบข้อมูล course
-    CourseRepo --> CourseServ: emptyList
-    CourseServ --> CourseCtrl: returnError("ไม่พบข้อมูล course")
-    CourseCtrl --> Router: errorResponse(404, "ไม่พบข้อมูล course")   ' (5b.1 และ 5b.2)
-end
-deactivate CourseRepo
-deactivate CourseServ
+alt ไม่พบข้อมูล course
+    CourseRepo --> CourseServ: []
+    CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
+    CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
+    FE -> User: "ไม่พบข้อมูล course"
+else พบข้อมูล course
+    CourseRepo --> CourseServ: [courseList]
+    CourseServ --> CourseCtrl: [courseList]
+    CourseCtrl -> Router: successResponse(200, courseList)
+    Router --> FE: successResponse(200, courseList)
+    FE -> User: "แสดงรายการ course"
 deactivate CourseCtrl
-Router --> FE: response (courseList or error)
 deactivate Router
-FE -> User: แสดงผล course ทั้งหมด
 
-'--- Phase 3: ดึงข้อมูล Progress ---
-' ผู้ใช้เลือก course ที่ต้องการและกด "ดูความคืบหน้า"
-User -> FE: เลือก course และกด "ดูความคืบหน้า"
-FE -> Router: GET /api/progress?courseID={courseID}
+'================= Phase 3: ดูความคืบหน้า =================
+User -> FE: เลือก course ที่ต้องการและกด "ดูความคืบหน้า"
+FE -> Router: GET /api/progression?courseID={selectedCourseID}
 activate Router
 Router -> MW: validateRequest()
 activate MW
-MW -> Router: request validated
+MW -> ProgressCtrl: getProgress(selectedCourseID, userID)
 deactivate MW
-
-
+activate ProgressCtrl
+ProgressCtrl -> ProgressServ: getProgress(selectedCourseID, userID)
+activate ProgressServ
+ProgressServ -> ProgressRepo: selectProgress(selectedCourseID, userID)
+activate ProgressRepo
+ProgressRepo -> DB: นึกไม่ออก
+DB --> ProgressRepo: [progressData]
+deactivate DB
+alt ไม่พบข้อมูลความคืบหน้า
+    ProgressRepo --> ProgressServ: []
+    ProgressServ -> ProgressCtrl: returnError("ไม่พบข้อมูลความคืบหน้า")
+    ProgressCtrl -> Router: errorResponse(404, "ไม่พบข้อมูลความคืบหน้า")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูลความคืบหน้า")
+    FE -> User: "ไม่พบข้อมูลความคืบหน้า"
+else พบข้อมูลความคืบหน้า
+    ProgressRepo --> ProgressServ: [progressData]
+    ProgressServ --> ProgressCtrl: [progressData]
+    ProgressCtrl -> Router: successResponse(200, progressData)
+    Router --> FE: successResponse(200, progressData)
+    FE -> User: "แสดงความคืบหน้า"
+    end
+  end
+end
+deactivate ProgressRepo
+deactivate ProgressServ
+deactivate ProgressCtrl
 deactivate Router
-FE -> User: แสดงผลความคืบหน้า
-User -> FE: ตรวจสอบความคืบหน้า
+
+'================= Phase 4: ผู้ใช้ตรวจสอบความคืบหน้า =================
+User -> User: ตรวจสอบความคืบหน้าที่แสดง
 
 @enduml
