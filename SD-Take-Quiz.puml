@@ -1,5 +1,5 @@
 @startuml
-title Take Quiz (Nested Alt Blocks)
+title Take Quiz
 
 actor "ผู้ใช้" as User
 participant "Frontend" as FE

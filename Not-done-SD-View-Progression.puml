@@ -1,5 +1,5 @@
 @startuml
-title View Progression (Sequence Diagram - Basic Flow)
+title View Progression
 
 actor "ผู้ใช้" as User
 '--- Phase 1: ดึงข้อมูล Class ---

@@ -1,5 +1,5 @@
 @startuml
-title Edit Profile Flow
+title Edit Profile
 
 actor User
 participant "Frontend" as FE

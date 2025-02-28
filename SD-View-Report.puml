@@ -1,5 +1,5 @@
 @startuml
-title View Report Sequence Diagram
+title View Report
 
 actor "ผู้ใช้" as User
 participant "Frontend" as FE

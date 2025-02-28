@@ -1,5 +1,5 @@
 @startuml
-title Create Class (Revised)
+title Create Class
 
 actor User
 participant "Frontend" as FE

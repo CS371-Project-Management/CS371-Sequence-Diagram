@@ -1,5 +1,5 @@
 @startuml
-title Delete Quiz Sequence Diagram
+title Delete Quiz
 
 actor "ผู้ใช้" as User
 participant "Frontend" as FE

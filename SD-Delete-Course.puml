@@ -1,5 +1,5 @@
 @startuml
-title Delete Course Sequence Diagram
+title Delete Course
 
 actor "ผู้ใช้" as User
 participant "Frontend" as FE
