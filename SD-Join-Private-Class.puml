@@ -1,0 +1,11 @@
+@startuml SequenceDiagram
+title Join Private Class
+actor User
+
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+
+
+
+@enduml

@@ -6,6 +6,16 @@ participant ": Frontend" as Frontend
 participant ": Router" as Router
 participant ": Middleware" as Middleware
 
+participant ": ClassController" as ClassController
+participant ": ClassService" as ClassService
+participant ": ClassRepository" as ClassRepository
+
+participant ": EnrollmentController" as EnrollmentController
+participant ": EnrollmentService" as EnrollmentService
+participant ": EnrollmentRepository" as EnrollmentRepository
+
+database Database
+
 Frontend -> Router: GET /api/classes/not-enrolled/{user-id}
 activate Router
 
@@ -117,10 +127,12 @@ else Authorized
           EnrollmentService -> EnrollmentRepository: .CreateEnrollment(user-id, class-id)
           activate EnrollmentRepository
           EnrollmentRepository -> Database: INSERT INTO user_classes (user_id, class_id) VALUES (@user_id, @class_id)
-          Database -->> EnrollmentRepository : user_classes, Error
-          EnrollmentRepository -> Database: INSERT INTO user_courses (user_id, class_id) VALUES (@user_id, @class_id)
-          Database -->> EnrollmentRepository : user_courses, Error
           activate Database
+          Database -->> EnrollmentRepository : user_classes, Error
+          deactivate Database
+          EnrollmentRepository -> Database: INSERT INTO user_courses (user_id, class_id) VALUES (@user_id, @class_id)
+          activate Database
+          Database -->> EnrollmentRepository : user_courses, Error
           deactivate Database
           EnrollmentRepository -->> EnrollmentService : Enrollment, Error
           deactivate EnrollmentRepository
@@ -140,7 +152,5 @@ else Authorized
     end
   end
 end
-
-database Database
 
 @enduml
