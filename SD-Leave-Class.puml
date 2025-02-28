@@ -60,7 +60,7 @@ else Authorized
 
   opt User selects class to leave
     User -> Frontend: .handleLeaveClassClick(classId)
-    Frontend -> Router: POST /api/leaveClass/{classId}
+    Frontend -> Router: POST /api/classes/leaveClass/{classId}
     activate Router
 
     Router -> Middleware: .Use(Middleware)
@@ -86,9 +86,8 @@ else Authorized
       ClassRepository -> Database: DELETE FROM user_courses WHERE user_id = @user_id
       activate Database
       Database -->> ClassRepository : Deleted, Error
-
+      ClassRepository -->> ClassService : Deleted, Error
       opt Error == Null
-        ClassRepository -->> ClassService : Deleted, Error
         deactivate Database
         deactivate ClassRepository
 
@@ -112,9 +111,9 @@ else Authorized
         deactivate Database
         LogRepository -->> ClassService : Deleted, Error
         deactivate LogRepository
-        ClassService -->> ClassController : Deleted, Error
-        deactivate ClassService
       end
+      ClassService -->> ClassController : Deleted, Error
+      deactivate ClassService
       alt Error != Null
         ClassController -->> Router: 500 Internal Server Error
         Router -->> Frontend: 500 Internal Server Error

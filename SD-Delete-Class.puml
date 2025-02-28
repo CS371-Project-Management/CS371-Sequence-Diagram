@@ -1,22 +1,21 @@
 @startuml
-title Delete Member
+title Delete Class
 
 actor User
 participant ": Frontend" as Frontend
 participant ": Router" as Router
 participant ": Middleware" as Middleware
-
 participant ": ClassController" as ClassController
 participant ": ClassService" as ClassService
 participant ": ClassRepository" as ClassRepository
 
+participant ": CourseRepository" as CourseRepository
 participant ": LogRepository" as LogRepository
-
 database Database
 
 activate Frontend
 
-Frontend -> Router: GET /api/classes (Fetch user-managed classes)
+Frontend -> Router: GET /api/classes
 activate Router
 
 Router -> Middleware: .Use(Middleware)
@@ -59,9 +58,9 @@ else Authorized
   deactivate ClassController
   deactivate Router
 
-  opt User selects a Manage
-    User -> Frontend: .handleManageClassClick(classId)
-    Frontend -> Router: GET /api/classes/users/{classId}
+  opt User selects a class to delete
+    User -> Frontend: .handleDeleteClassClick(classId)
+    Frontend -> Router: GET /api/classes/delete/{classId}
     activate Router
 
     Router -> Middleware: .Use(Middleware)
@@ -74,39 +73,39 @@ else Authorized
     else Authorized
       Middleware -->> Router: Route to Router
       deactivate Middleware
-      Router -> ClassController: .GetAllUsers(classId)
+      Router -> ClassController: .GetClassById(classId)
       activate ClassController
-      ClassController -> ClassService: .GetAllUsers(classId)
+      ClassController -> ClassService: .GetClassById(classId)
       activate ClassService
-      ClassService -> ClassRepository: .GetAllUsers(classId)
+      ClassService -> ClassRepository: .GetClassById(classId)
       activate ClassRepository
-      ClassRepository -> Database: SELECT * FROM users WHERE class_id = @class_id
+      ClassRepository -> Database: SELECT * FROM classes WHERE id = @class_id
       activate Database
-      Database -->> ClassRepository : Users, Error
+      Database -->> ClassRepository : Class, Error
       deactivate Database
-      ClassRepository -->> ClassService : Users, Error
+      ClassRepository -->> ClassService : Class, Error
       deactivate ClassRepository
-      ClassService -->> ClassController : Users, Error
+      ClassService -->> ClassController : Class, Error
       deactivate ClassService
       alt Error != Null
         ClassController -->> Router : 500 Internal Server Error
         Router -->> Frontend : 500 Internal Server Error
-        Frontend -->> User : Show error "Failed to fetch users"
-      else Users == Null
+        Frontend -->> User : Show error "Failed to fetch class details"
+      else Class == Null
         ClassController -->> Router : 404 Not Found
         Router -->> Frontend : 404 Not Found
-        Frontend -->> User : Show message "No users found"
+        Frontend -->> User : Show message "Class not found"
       else
         ClassController -->> Router : 200 OK
         Router -->> Frontend : 200 OK
-        Frontend -->> User : Show users list
+        Frontend -->> User : Show delete confirmation
       end
       deactivate ClassController
       deactivate Router
 
-      opt User selects a user to delete
-        User -> Frontend: .handleUserDeleteClick(userId)
-        Frontend -> Router: POST /api/deleteUser/{userId}
+      opt User confirms deletion
+        User -> Frontend: .confirmDeleteClass(classId)
+        Frontend -> Router: POST /api/classes/{classId}/delete
         activate Router
 
         Router -> Middleware: .Use(Middleware)
@@ -119,57 +118,91 @@ else Authorized
         else Authorized
           Middleware -->> Router: Route to Router
           deactivate Middleware
-          Router -> ClassController: .DeleteUser(userId)
+          Router -> ClassController: .DeleteClass(classId)
           activate ClassController
-          ClassController -> ClassService: .DeleteUser(userId)
+          ClassController -> ClassService: .DeleteClass(classId)
           activate ClassService
-          ClassService -> ClassRepository: .DeleteUser(userId)
+          ClassService -> ClassRepository: .DeleteClass(classId)
           activate ClassRepository
-          ClassRepository -> Database: DELETE FROM user_classes WHERE user_id = @user_id
+          ClassRepository -> Database: DELETE FROM classes WHERE id = @class_id
           activate Database
           Database -->> ClassRepository : Deleted, Error
           deactivate Database
-          ClassRepository -> Database: DELETE FROM user_courses WHERE user_id = @user_id
+
+          ClassRepository -> Database: DELETE FROM user_classes WHERE class_id = @class_id
           activate Database
           Database -->> ClassRepository : Deleted, Error
+          deactivate Database
+
+
+
+
           ClassRepository -->> ClassService : Deleted, Error
+          deactivate ClassRepository
+
           opt Error == Null
+            ClassService -> CourseRepository: .DeleteCourse(courseId)
+            activate CourseRepository
+            CourseRepository -> Database: DELETE FROM courses WHERE id = @course_id
+            activate Database
+            Database -->> CourseRepository : Deleted, Error
             deactivate Database
-            deactivate ClassRepository
+            CourseRepository -->> ClassService : Deleted, Error
 
-            ClassService -> LogRepository: .DeleteUserLogs(userId)
+            CourseRepository -> Database: DELETE FROM user_courses WHERE course_id = @course_id
+            activate Database
+            Database -->> CourseRepository : Deleted, Error
+            deactivate Database
+            CourseRepository -->> ClassService: Deleted, Error
+            deactivate CourseRepository
+
+            ClassService -> LogRepository: .DeleteClassLogs(classId)
             activate LogRepository
-            LogRepository -> Database: DELETE FROM quiz_histories WHERE user_id = @user_id
-            activate Database
-            Database -->> LogRepository : Deleted, Error
-            deactivate Database
-            LogRepository -> Database: DELETE FROM choice_histories WHERE user_id = @user_id
-            activate Database
-            Database -->> LogRepository : Deleted, Error
-            deactivate Database
-            LogRepository -> Database: DELETE FROM ordering_histories WHERE user_id = @user_id
-            activate Database
-            Database -->> LogRepository : Deleted, Error
-            deactivate Database
-            LogRepository -> Database: DELETE FROM missing_words_histories WHERE user_id = @user_id
-            activate Database
-            Database -->> LogRepository : Deleted, Error
-            deactivate Database
-            LogRepository -->> ClassService : Deleted, Error
-            deactivate LogRepository
-          end
 
+            opt Error == Null
+              LogRepository -> Database: DELETE FROM quizzes WHERE course_id = @course_id
+              activate Database
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM choice_quizzes WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM choice_answers WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM ordering_quizzes WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM ordering_answers WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM missing_word_quizzes WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM quiz_histories WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM choice_histories WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM ordering_histories WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              LogRepository -> Database: DELETE FROM missing_word_histories WHERE course_id = @course_id
+              Database -->> LogRepository : Deleted, Error
+              deactivate Database
+              LogRepository -->> ClassService : Deleted, Error
+              deactivate LogRepository
+            end
+          end
           ClassService -->> ClassController : Deleted, Error
           deactivate ClassService
+
+
           alt Error != Null
             ClassController -->> Router: 500 Internal Server Error
             Router -->> Frontend: 500 Internal Server Error
-            Frontend -->> User: Show error "Failed to Delete user"
+            Frontend -->> User: Show error "Failed to delete class"
           else
             ClassController -->> Router: 200 OK
             Router -->> Frontend: 200 OK
-            Frontend -->> User: Show message "Delete User successfully"
+            Frontend -->> User: Show success "Class deleted successfully"
           end
+
+
+
+
         end
       end
     end
