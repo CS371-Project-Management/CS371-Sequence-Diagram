@@ -1,0 +1,159 @@
+@startuml
+title View Report Sequence Diagram
+
+actor "ผู้ใช้" as User
+participant "Frontend" as FE
+participant "Router" as Router
+participant "Middleware" as MW
+
+' --- Class Module ---
+participant "Class Controller" as ClassCtrl
+participant "Class Service" as ClassServ
+participant "Class Repository" as ClassRepo
+
+' --- Course Module ---
+participant "Course Controller" as CourseCtrl
+participant "Course Service" as CourseServ
+participant "Course Repository" as CourseRepo
+
+' --- Report Module ---
+participant "Report Controller" as ReportCtrl
+participant "Report Service" as ReportServ
+' ใช้ Quiz Repository สำหรับดึงข้อมูลประวัติแบบทดสอบ
+participant "Quiz Repository" as QuizRepo
+
+participant "Database" as DB
+
+'================= Phase 1: ดึงข้อมูล Class ที่ผู้ใช้เข้าร่วม =================
+FE -> Router: GET /api/classes?joined=true
+activate Router
+Router -> MW: validateSession()
+activate MW
+MW -> ClassCtrl: getJoinedClasses(userID)
+deactivate MW
+activate ClassCtrl
+ClassCtrl -> ClassServ: getJoinedClasses(userID)
+activate ClassServ
+ClassServ -> ClassRepo: selectJoinedClasses(userID)
+activate ClassRepo
+ClassRepo -> DB: SELECT id, name, description FROM classes WHERE user_id = ?
+activate DB
+DB --> ClassRepo: [classList]
+deactivate DB
+alt ไม่พบข้อมูล class
+   ClassRepo --> ClassServ: []
+       ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
+       ClassCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+       Router --> FE: errorResponse(404, "ไม่พบข้อมูล class")
+       FE -> User: แสดงข้อความ "ไม่พบข้อมูล class"
+else พบข้อมูล class
+    ClassRepo --> ClassServ: [classList]
+        ClassServ --> ClassCtrl: [classList]
+        ClassCtrl --> Router: successResponse(200, classList)
+        Router --> FE: successResponse(200, classList)
+        FE -> User: แสดงรายการ class
+deactivate ClassCtrl
+deactivate Router
+
+'================= Phase 2: ดึงข้อมูล Course ภายใน Class ที่เลือก =================
+User -> FE: เลือก class ที่ต้องการ
+FE -> Router: GET /api/courses?classID={classID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> CourseCtrl: getCourses(classID)
+deactivate MW
+activate CourseCtrl
+CourseCtrl -> CourseServ: getCourses(classID)
+activate CourseServ
+CourseServ -> CourseRepo: selectCoursesByClass(classID)
+activate CourseRepo
+CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+activate DB
+DB --> CourseRepo: [courseList]
+deactivate DB
+alt ไม่พบข้อมูล course
+    CourseRepo --> CourseServ: []
+        CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
+        CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
+        Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
+        FE -> User: แสดงข้อความ "ไม่พบข้อมูล course"
+else พบข้อมูล course
+CourseRepo --> CourseServ: [courseList]
+    CourseServ --> CourseCtrl: [courseList]
+    CourseCtrl --> Router: successResponse(200, courseList)
+    Router --> FE: successResponse(200, courseList)
+    FE -> User: แสดงรายการ course
+
+deactivate CourseCtrl
+deactivate Router
+
+'================= Phase 3: ยืนยันส่งคำตอบ =================
+User -> FE: กดปุ่มยืนยันการส่งคำตอบ
+FE -> User: ยืนยันการส่งคำตอบเรียบร้อย
+
+'================= Phase 4: ดูผลการทำแบบทดสอบ (View Report) =================
+User -> FE: กดปุ่ม "ดูผลการทำแบบทดสอบ"
+FE -> Router: GET /api/quizReport?courseID={courseID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> ReportCtrl: getQuizReport(courseID, userID)
+deactivate MW
+activate ReportCtrl
+ReportCtrl -> ReportServ: getQuizReport(courseID, userID)
+activate ReportServ
+ReportServ -> QuizRepo: selectQuizReportData(courseID, userID)
+activate QuizRepo
+QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [quizList]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM quiz_histories WHERE course_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [quizHistories]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM choice_histories WHERE course_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [choiceHistories]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM ordering_histories WHERE course_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [orderingHistories]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM missing_words_histories WHERE course_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [missingWordsHistories]
+deactivate DB
+QuizRepo --> ReportServ: [quizReportData]
+deactivate QuizRepo
+
+ReportServ -> ReportServ: check completeness of quiz histories
+alt ประวัติไม่ครบ
+    ReportServ --> ReportCtrl: returnError("ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
+    ReportCtrl --> Router: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
+    Router --> FE: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
+    FE -> User: แสดงข้อความ "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ"
+else
+    ReportServ -> ReportServ: calculate report result
+    alt คำนวณผลสำเร็จ
+         ReportServ --> ReportCtrl: reportResult
+         ReportCtrl --> Router: successResponse(200, reportResult)
+         Router --> FE: successResponse(200, reportResult)
+         FE -> User: แสดงผลคะแนนและรายงานผลแบบทดสอบ
+    else คำนวณผลไม่สำเร็จ
+         ReportServ --> ReportCtrl: returnError("เกิดข้อผิดพลาดในการคำนวณ")
+         ReportCtrl --> Router: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
+         Router --> FE: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
+         FE -> User: แสดงข้อความ "เกิดข้อผิดพลาดในการคำนวณ"
+    end
+end
+end
+deactivate ReportServ
+deactivate ReportCtrl
+deactivate Router
+end
+'================= Phase 5: (ถ้ามี) กรณีเพิ่มเติมอื่น ๆ =================
+' (สามารถเพิ่ม Flow สำหรับกรณีอื่นได้ตามที่กำหนดใน Alternate flows)
+
+@enduml
