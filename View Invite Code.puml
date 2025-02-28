@@ -1,0 +1,123 @@
+@startuml
+title View Invite Code
+
+actor User
+participant "Frontend" as FE
+participant Router
+participant "Middleware" as MW
+participant "Class Controller" as Controller
+participant "Class Service" as Service
+participant "Class Repository" as Repository
+participant "Database" as DB
+
+'Phase 1: Retrieve Admin Classes'
+activate FE
+FE -> Router: GET /api/classes?admin=true
+activate Router
+Router -> MW: validateSession()
+activate MW
+MW -> Controller: getAdminClasses(userID)
+deactivate MW
+activate Controller
+Controller -> Service: getAdminClasses(userID)
+activate Service
+Service -> Repository: selectClassesByAdmin(userID)
+activate Repository
+Repository -> DB: SELECT id, name, description, privacy FROM classes WHERE owner_id = ?
+activate DB
+DB --> Repository: classList
+deactivate DB
+alt No classes found (2b.1)
+    Repository --> Service: emptyList
+    deactivate Repository
+    Service -> Controller: returnError("ไม่พบข้อมูล class")
+    deactivate Service
+    Controller -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+    Router -> FE: errorResponse(404, "ไม่พบข้อมูล class")
+else Classes found (2a.1)
+    Repository --> Service: classList
+    deactivate Repository
+    Service --> Controller: classList
+    deactivate Service
+    Controller -> Router: successResponse(200, classList)
+    Router -> FE: successResponse(200, classList)
+end
+deactivate Router
+FE -> User: displayClassesList(classList)
+
+'Phase 2: User selects class and clicks View Invite Code'
+User -> FE: selectClass(classID)
+FE -> FE: displayClassDetails(classDetails)
+User -> FE: clickViewInviteCode(classID)
+FE -> Router: GET /api/classes/invite-code?classID={classID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> Controller: viewInviteCode(classID)
+deactivate MW
+activate Controller
+Controller -> Service: getInviteCode(classID)
+activate Service
+Service -> Repository: selectInviteCode(classID)
+activate Repository
+Repository -> DB: SELECT invite_code FROM class_invite_codes WHERE class_id = ?
+activate DB
+DB --> Repository: inviteCodeResult
+deactivate DB
+alt Invite code exists (5b.1)
+    Repository --> Service: inviteCode
+    deactivate Repository
+    Service --> Controller: inviteCode
+    deactivate Service
+    Controller -> Router: successResponse(200, inviteCode)
+    Router -> FE: successResponse(200, inviteCode)
+    FE -> User: displayInviteCode(inviteCode)
+else Invite code not found (5a.1)
+    Repository --> Service: null
+    deactivate Repository
+    'Generate new invite code'
+    Service -> Service: generateRandomCode()
+    activate Service
+    Service -> Repository: checkGeneratedCode(generatedCode)
+    activate Repository
+    Repository -> DB: SELECT * FROM class_invite_codes WHERE invite_code = generatedCode
+    activate DB
+    DB --> Repository: checkResult
+    deactivate DB
+    alt Generated code exists (7b.1)
+        Repository --> Service: foundExisting
+        deactivate Repository
+        Service -> Service: generateRandomCode() again
+        'Loop back to checking generated code'
+    else Generated code unique (7a.1)
+        Repository --> Service: notFound
+        deactivate Repository
+        Service -> Repository: insertInviteCode(classID, generatedCode)
+        activate Repository
+        Repository -> DB: INSERT INTO class_invite_codes (class_id, invite_code) VALUES (?, ?)
+        activate DB
+        DB --> Repository: affectedRows
+        deactivate DB
+        alt Insert success (9a.1)
+            Repository --> Service: inviteCodeRecord
+            deactivate Repository
+            Service --> Controller: inviteCodeRecord
+            deactivate Service
+            Controller -> Router: successResponse(200, inviteCodeRecord)
+            Router -> FE: successResponse(200, inviteCodeRecord)
+            FE -> User: displayInviteCode(inviteCodeRecord)
+        else Insert failed (9b.1)
+            Repository --> Service: failure
+            deactivate Repository
+            Service -> Controller: returnError("ไม่สามารถสร้าง invite code ได้")
+            deactivate Service
+            Controller -> Router: errorResponse(500, "ไม่สามารถสร้าง invite code ได้")
+            Router -> FE: errorResponse(500, "ไม่สามารถสร้าง invite code ได้")
+        end
+    end
+end
+deactivate Controller
+deactivate Router
+deactivate FE
+
+@enduml

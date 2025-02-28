@@ -1,5 +1,5 @@
 @startuml
-title Create Class
+title Create Class (Revised)
 
 actor User
 participant "Frontend" as FE
@@ -24,11 +24,10 @@ MW -> Controller: CreateClass(name, description, privacy)
 deactivate MW
 activate Controller
 Controller -> Controller: validateInput()
-
-alt invalidInput (4.1a)
+alt invalidInput (4b.1)
     Controller -> Router: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     Router -> FE: errorResponse(400)
-else validInput (4.1)
+else validInput (4a.1)
     Controller -> Service: CreateClass(name, description, privacy)
     activate Service
     Service -> Repository: insertClass(name, description, privacy, userID)
@@ -37,7 +36,7 @@ else validInput (4.1)
     activate DB
     DB -->> Repository: affectedRows / classRecord
     deactivate DB
-
+    alt insertSuccess (6a.1)
         Repository -> Service: returnClassRecord(classRecord)
         deactivate Repository
         Service -> Controller: returnClassRecord(classRecord)
@@ -45,9 +44,16 @@ else validInput (4.1)
         Controller -> Router: successResponse(201, classRecord)
         Router -> FE: successResponse(201, classRecord)
         FE -> User: displayMessage("สร้าง class สำเร็จ")
+    else insertFailed (6b.1)
+        Repository -> Service: returnError("ไม่สามารถสร้าง class ได้")
+        deactivate Repository
+        Service -> Controller: returnError("ไม่สามารถสร้าง class ได้")
+        deactivate Service
+        Controller -> Router: returnError("ไม่สามารถสร้าง class ได้")
+        Router -> FE: errorResponse(500, "สร้าง class ไม่สำเร็จ")
+    end
 end
 deactivate Controller
-deactivate MW
 deactivate Router
 
 @enduml
