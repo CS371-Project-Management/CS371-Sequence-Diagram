@@ -2,7 +2,6 @@
 title View Progression (Sequence Diagram - Basic Flow)
 
 actor "ผู้ใช้" as User
-'นึก q'
 '--- Phase 1: ดึงข้อมูล Class ---
 participant "Frontend" as FE
 participant "Router" as Router
