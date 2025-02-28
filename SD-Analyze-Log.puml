@@ -124,7 +124,7 @@ else Authorized
         alt Unauthorized (401 Unauthorized)
           Middleware -->> Router: 401 Unauthorized
           Router -->> Frontend: 401 Unauthorized
-          Frontend -->> User: Show error "Please log idn"
+          Frontend -->> User: Show error "Please log in"
         else Authorized
           Middleware -->> Router: Route to Router
           deactivate Middleware
@@ -134,28 +134,48 @@ else Authorized
           activate LogService
           LogService -> LogRepository: .GetAllLogs(courseId,logType)
           activate LogRepository
-          LogRepository -> Database: SELECT * FROM logs WHERE course_id = @course_id AND type = @log_type
           activate Database
-          Database -->> LogRepository : Logs, Error
+          LogRepository -> Database: SELECT * FROM quizzes WHERE course_id = @course_id
+          Database -->> LogRepository : quizzes, Error
+          LogRepository -> Database: SELECT * FROM choice_quizzes WHERE course_id = @course_id
+          Database -->> LogRepository : choice_quizzes, Error
+          LogRepository -> Database: SELECT * FROM choice_answers WHERE course_id = @course_id
+          Database -->> LogRepository : choice_answers, Error
+          LogRepository -> Database: SELECT * FROM ordering_quizzes WHERE course_id = @course_id
+          Database -->> LogRepository : ordering_quizzes, Error
+          LogRepository -> Database: SELECT * FROM ordering_answers WHERE course_id = @course_id
+          Database -->> LogRepository : ordering_answers, Error
+          LogRepository -> Database: SELECT * FROM missing_word_quizzes WHERE course_id = @course_id
+          Database -->> LogRepository : missing_word_quizzes, Error
+          LogRepository -> Database: SELECT * FROM quiz_histories WHERE course_id = @course_id
+          Database -->> LogRepository : quiz_histories, Error
+          LogRepository -> Database: SELECT * FROM choice_histories WHERE course_id = @course_id
+          Database -->> LogRepository : choice_histories, Error
+          LogRepository -> Database: SELECT * FROM ordering_histories WHERE course_id = @course_id
+          Database -->> LogRepository : ordering_histories, Error
+          LogRepository -> Database: SELECT * FROM missing_word_histories WHERE course_id = @course_id
+          Database -->> LogRepository : missing_word_histories, Error
           deactivate Database
           LogRepository -->> LogService : Logs, Error
           deactivate LogRepository
-          LogService -->> LogController : Logs, Error
-          deactivate LogService
           alt Error != Null
+            LogService -->> LogController : Logs, Error
             LogController -->> Router : 500 Internal Server Error
             Router -->> Frontend : 500 Internal Server Error
             Frontend -->> User : Show error "Failed to fetch logs"
           else Logs == Null
+            LogService -->> LogController : Logs, Error
             LogController -->> Router : 404 Not Found
             Router -->> Frontend : 404 Not Found
             Frontend -->> User : Show message "Log not found"
           else
-            LogController -> LogController : Calculate statistics
+            LogService -> LogService : Calculate statistics
+            LogService -->> LogController : Logs
             LogController -->> Router : 200 OK
             Router -->> Frontend : 200 OK
             Frontend -->> User : Show logs list
           end
+          deactivate LogService
         end
       end
     end

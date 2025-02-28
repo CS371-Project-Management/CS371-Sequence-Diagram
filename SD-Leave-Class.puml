@@ -1,0 +1,129 @@
+@startuml
+title Leave Class
+
+actor User
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+participant ": ClassController" as ClassController
+participant ": ClassService" as ClassService
+participant ": ClassRepository" as ClassRepository
+
+participant ": LogRepository" as LogRepository
+
+database Database
+
+activate Frontend
+
+Frontend -> Router: GET /api/classes (Fetch user's joined classes)
+activate Router
+
+Router -> Middleware: .Use(Middleware)
+activate Middleware
+Middleware -> Middleware : .Verify()
+alt Unauthorized (401 Unauthorized)
+  Middleware -->> Router: 401 Unauthorized
+  Router -->> Frontend: 401 Unauthorized
+  Frontend -->> User: Show error "Please log in"
+else Authorized
+  Middleware -->> Router: Route to Router
+  deactivate Middleware
+  Router -> ClassController: .GetUserClasses()
+  activate ClassController
+  ClassController -> ClassService: .GetUserClasses()
+  activate ClassService
+  ClassService -> ClassRepository: .GetUserClasses()
+  activate ClassRepository
+  ClassRepository -> Database: SELECT * FROM user_classes WHERE user_id = @user_id
+  activate Database
+  Database -->> ClassRepository: Classes, Error
+  deactivate Database
+  ClassRepository -->> ClassService: Classes, Error
+  deactivate ClassRepository
+  ClassService -->> ClassController: Classes, Error
+  deactivate ClassService
+  alt Error != Null
+    ClassController -->> Router: 500 Internal Server Error
+    Router -->> Frontend: 500 Internal Server Error
+    Frontend -->> User: Show error "Failed to fetch classes"
+  else Classes == Null
+    ClassController -->> Router: 404 Not Found
+    Router -->> Frontend: 404 Not Found
+    Frontend -->> User: Show message "No classes found"
+  else
+    ClassController -->> Router: 200 OK
+    Router -->> Frontend: 200 OK
+    Frontend -->> User: Show classes list
+  end
+  deactivate ClassController
+  deactivate Router
+
+  opt User selects class to leave
+    User -> Frontend: .handleLeaveClassClick(classId)
+    Frontend -> Router: POST /api/classes/leaveClass/{classId}
+    activate Router
+
+    Router -> Middleware: .Use(Middleware)
+    activate Middleware
+    Middleware -> Middleware : .Verify()
+    alt Unauthorized (401 Unauthorized)
+      Middleware -->> Router: 401 Unauthorized
+      Router -->> Frontend: 401 Unauthorized
+      Frontend -->> User: Show error "Please log in"
+    else Authorized
+      Middleware -->> Router: Route to Router
+      deactivate Middleware
+      Router -> ClassController: .LeaveClass(classId)
+      activate ClassController
+      ClassController -> ClassService: .LeaveClass(classId)
+      activate ClassService
+      ClassService -> ClassRepository: .LeaveClass(classId)
+      activate ClassRepository
+      ClassRepository -> Database: DELETE FROM user_classes WHERE user_id = @user_id
+      activate Database
+      Database -->> ClassRepository : Deleted, Error
+      deactivate Database
+      ClassRepository -> Database: DELETE FROM user_courses WHERE user_id = @user_id
+      activate Database
+      Database -->> ClassRepository : Deleted, Error
+      ClassRepository -->> ClassService : Deleted, Error
+      opt Error == Null
+        deactivate Database
+        deactivate ClassRepository
+
+        ClassService -> LogRepository: .DeleteUserLogs(userId)
+        activate LogRepository
+        LogRepository -> Database: DELETE FROM quiz_histories WHERE user_id = @user_id
+        activate Database
+        Database -->> LogRepository : Deleted, Error
+        deactivate Database
+        LogRepository -> Database: DELETE FROM choice_histories WHERE user_id = @user_id
+        activate Database
+        Database -->> LogRepository : Deleted, Error
+        deactivate Database
+        LogRepository -> Database: DELETE FROM ordering_histories WHERE user_id = @user_id
+        activate Database
+        Database -->> LogRepository : Deleted, Error
+        deactivate Database
+        LogRepository -> Database: DELETE FROM missing_words_histories WHERE user_id = @user_id
+        activate Database
+        Database -->> LogRepository : Deleted, Error
+        deactivate Database
+        LogRepository -->> ClassService : Deleted, Error
+        deactivate LogRepository
+      end
+      ClassService -->> ClassController : Deleted, Error
+      deactivate ClassService
+      alt Error != Null
+        ClassController -->> Router: 500 Internal Server Error
+        Router -->> Frontend: 500 Internal Server Error
+        Frontend -->> User: Show error "Failed to leave class"
+      else
+        ClassController -->> Router: 200 OK
+        Router -->> Frontend: 200 OK
+        Frontend -->> User: Show message "Left class successfully"
+      end
+    end
+  end
+end
+@enduml

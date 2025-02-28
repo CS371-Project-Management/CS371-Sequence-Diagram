@@ -1,0 +1,123 @@
+@startuml
+title Create Course
+
+actor User
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+
+participant ": ClassController" as ClassController
+participant ": ClassService" as ClassService
+participant ": ClassRepository" as ClassRepository
+
+participant ": CourseController" as CourseController
+participant ": CourseService" as CourseService
+participant ": CourseRepository" as CourseRepository
+
+database Database
+
+activate Frontend
+
+Frontend -> Router: GET /api/classes (Fetch user-managed classes)
+activate Router
+
+Router -> Middleware: .Use(Middleware)
+activate Middleware
+Middleware -> Middleware : .Verify()
+alt Unauthorized (401 Unauthorized)
+  Middleware -->> Router: 401 Unauthorized
+  Router -->> Frontend: 401 Unauthorized
+  Frontend -->> User: Show error "Please log in"
+else Authorized
+  Middleware -->> Router: Route to Router
+  deactivate Middleware
+  Router -> ClassController: .GetAllClasses()
+  activate ClassController
+  ClassController -> ClassService: .GetAllClasses()
+  activate ClassService
+  ClassService -> ClassRepository: .GetAllClasses()
+  activate ClassRepository
+  ClassRepository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  activate Database
+  Database -->> ClassRepository : Classes, Error
+  deactivate Database
+  ClassRepository -->> ClassService : Classes, Error
+  deactivate ClassRepository
+  ClassService -->> ClassController : Classes, Error
+  deactivate ClassService
+  alt Error != Null
+    ClassController -->> Router : 500 Internal Server Error
+    Router -->> Frontend : 500 Internal Server Error
+    Frontend -->> User : Show error "Failed to fetch classes"
+  else Classes == Null
+    ClassController -->> Router : 404 Not Found
+    Router -->> Frontend : 404 Not Found
+    Frontend -->> User : Show message "No classes found"
+  else
+    ClassController -->> Router : 200 OK
+    Router -->> Frontend : 200 OK
+    Frontend -->> User : Show classes list
+  end
+  deactivate ClassController
+  deactivate Router
+
+  opt User selects a class to create course
+    User -> Frontend: .handleCreateCourseClick(classId)
+    Frontend -> User: Show create course form
+
+    User -> Frontend: .handleCreateCourseSubmit(name,description)
+    Frontend -> Frontend: .Validate(name,description)
+
+    alt Invalid
+      Frontend -> User: Show error "Invalid course name or description"
+    else Valid
+      Frontend -> Router: POST /api/courses/{classId}
+      activate Router
+
+      Router -> Middleware: .Use(Middleware)
+      activate Middleware
+      Middleware -> Middleware : .Verify()
+
+      alt Unauthorized (401 Unauthorized)
+        Middleware -->> Router: 401 Unauthorized
+        Router -->> Frontend: 401 Unauthorized
+        Frontend -->> User: Show error "Please log in"
+      else Authorized
+        Middleware -->> Router: Route to Router
+        deactivate Middleware
+        Router -> CourseController: .CreateCourse(classId, name, description)
+        activate CourseController
+        CourseController -> CourseService: .CreateCourse(classId, name, description)
+        activate CourseService
+        CourseService -> CourseRepository: .CreateCourse(classId, name, description)
+        activate CourseRepository
+        CourseRepository -> Database: INSERT INTO courses (class_id, name, description) VALUES (@class_id, @name, @description)
+        activate Database
+        Database -->> CourseRepository : Course, Error
+        deactivate Database
+        CourseRepository -->> CourseService : Course, Error
+        deactivate CourseRepository
+        CourseService -->> CourseController : Course, Error
+        deactivate CourseService
+        alt Error != Null
+          CourseController -->> Router : 500 Internal Server Error
+          Router -->> Frontend : 500 Internal Server Error
+          Frontend -->> User : Show error "Failed to create course"
+        else Course == Null
+          CourseController -->> Router : 404 Not Found
+          Router -->> Frontend : 404 Not Found
+          Frontend -->> User : Show message "Failed to create course"
+        else
+          CourseController -->> Router : 201 Created
+          Router -->> Frontend : 201 Created
+          Frontend -->> User : Show message "Course created"
+        end
+
+
+      end
+    end
+
+
+  end
+end
+@enduml

@@ -33,7 +33,7 @@ Middleware -> Middleware : .Verify()
 alt Unauthorized (401 Unauthorized)
   Middleware -->> Router: 401 Unauthorized
   Router -->> Frontend: 401 Unauthorized
-  Frontend -->> User: Show error "Please log idn"
+  Frontend -->> User: Show error "Please log in"
 else Authorized
   Middleware -->> Router: Route to Router
   deactivate Middleware
@@ -220,10 +220,22 @@ else Authorized
                       activate QuizController
                       QuizController -> QuizService: .EditQuiz(quizId, content, quiz_type, questions, choices, answers)
                       activate QuizService
-                      QuizService -> QuizRepository: .EditQuiz(quizId, content, quiz_type, questions, choices, answers)
-                      activate QuizRepository
-                      QuizRepository -> Database: UPDATE quizzes SET content = @content, quiz_type = @quiz_type, questions = @questions, choices = @choices, answers = @answers WHERE id = @quiz_id
+                     
                       activate Database
+                      alt quiz_type == single_choice
+                        QuizService -> QuizRepository: .EditSingleChoiceQuiz(courseId, content, questions, choices, answers)
+                        QuizRepository -> Database: UPDATE quizzes SET content = @content, questions = @questions, choices = @choices, answers = @answers WHERE id = @quiz_id
+                      else quiz_type == multiple_choice
+                        QuizService -> QuizRepository: .EditMultipleChoiceQuiz(courseId, content, questions, choices, answers)
+                        QuizRepository -> Database: UPDATE quizzes SET content = @content, questions = @questions, choices = @choices, answers = @answers WHERE id = @quiz_id
+                      else quiz_type == ordering_choice
+                        QuizService -> QuizRepository: .EditOrderingChoiceQuiz(courseId, content, questions, choices, answers)
+                        QuizRepository -> Database: UPDATE quizzes SET content = @content, questions = @questions, choices = @choices, answers = @answers WHERE id = @quiz_id
+                      else quiz_type == missing_word_choice
+                        QuizService -> QuizRepository: .EditMissingWordChoiceQuiz(courseId, content, questions, choices, answers)
+                        QuizRepository -> Database: UPDATE quizzes SET content = @content, questions = @questions, choices = @choices, answers = @answers WHERE id = @quiz_id
+                      end
+                      activate QuizRepository
                       Database -->> QuizRepository : Quiz, Error
                       deactivate Database
                       QuizRepository -->> QuizService : Quiz, Error

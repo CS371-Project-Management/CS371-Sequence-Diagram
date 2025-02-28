@@ -1,0 +1,178 @@
+@startuml
+title Delete Member
+
+actor User
+participant ": Frontend" as Frontend
+participant ": Router" as Router
+participant ": Middleware" as Middleware
+
+participant ": ClassController" as ClassController
+participant ": ClassService" as ClassService
+participant ": ClassRepository" as ClassRepository
+
+participant ": LogRepository" as LogRepository
+
+database Database
+
+activate Frontend
+
+Frontend -> Router: GET /api/classes (Fetch user-managed classes)
+activate Router
+
+Router -> Middleware: .Use(Middleware)
+activate Middleware
+Middleware -> Middleware : .Verify()
+alt Unauthorized (401 Unauthorized)
+  Middleware -->> Router: 401 Unauthorized
+  Router -->> Frontend: 401 Unauthorized
+  Frontend -->> User: Show error "Please log in"
+else Authorized
+  Middleware -->> Router: Route to Router
+  deactivate Middleware
+  Router -> ClassController: .GetAllClasses()
+  activate ClassController
+  ClassController -> ClassService: .GetAllClasses()
+  activate ClassService
+  ClassService -> ClassRepository: .GetAllClasses()
+  activate ClassRepository
+  ClassRepository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  activate Database
+  Database -->> ClassRepository : Classes, Error
+  deactivate Database
+  ClassRepository -->> ClassService : Classes, Error
+  deactivate ClassRepository
+  ClassService -->> ClassController : Classes, Error
+  deactivate ClassService
+  alt Error != Null
+    ClassController -->> Router : 500 Internal Server Error
+    Router -->> Frontend : 500 Internal Server Error
+    Frontend -->> User : Show error "Failed to fetch classes"
+  else Classes == Null
+    ClassController -->> Router : 404 Not Found
+    Router -->> Frontend : 404 Not Found
+    Frontend -->> User : Show message "No classes found"
+  else
+    ClassController -->> Router : 200 OK
+    Router -->> Frontend : 200 OK
+    Frontend -->> User : Show classes list
+  end
+  deactivate ClassController
+  deactivate Router
+
+  opt User selects a Manage
+    User -> Frontend: .handleManageClassClick(classId)
+    Frontend -> Router: GET /api/classes/users/{classId}
+    activate Router
+
+    Router -> Middleware: .Use(Middleware)
+    activate Middleware
+    Middleware -> Middleware : .Verify()
+    alt Unauthorized (401 Unauthorized)
+      Middleware -->> Router: 401 Unauthorized
+      Router -->> Frontend: 401 Unauthorized
+      Frontend -->> User: Show error "Please log in"
+    else Authorized
+      Middleware -->> Router: Route to Router
+      deactivate Middleware
+      Router -> ClassController: .GetAllUsers(classId)
+      activate ClassController
+      ClassController -> ClassService: .GetAllUsers(classId)
+      activate ClassService
+      ClassService -> ClassRepository: .GetAllUsers(classId)
+      activate ClassRepository
+      ClassRepository -> Database: SELECT * FROM users WHERE class_id = @class_id
+      activate Database
+      Database -->> ClassRepository : Users, Error
+      deactivate Database
+      ClassRepository -->> ClassService : Users, Error
+      deactivate ClassRepository
+      ClassService -->> ClassController : Users, Error
+      deactivate ClassService
+      alt Error != Null
+        ClassController -->> Router : 500 Internal Server Error
+        Router -->> Frontend : 500 Internal Server Error
+        Frontend -->> User : Show error "Failed to fetch users"
+      else Users == Null
+        ClassController -->> Router : 404 Not Found
+        Router -->> Frontend : 404 Not Found
+        Frontend -->> User : Show message "No users found"
+      else
+        ClassController -->> Router : 200 OK
+        Router -->> Frontend : 200 OK
+        Frontend -->> User : Show users list
+      end
+      deactivate ClassController
+      deactivate Router
+
+      opt User selects a user to delete
+        User -> Frontend: .handleUserDeleteClick(userId)
+        Frontend -> Router: POST /api/deleteUser/{userId}
+        activate Router
+
+        Router -> Middleware: .Use(Middleware)
+        activate Middleware
+        Middleware -> Middleware : .Verify()
+        alt Unauthorized (401 Unauthorized)
+          Middleware -->> Router: 401 Unauthorized
+          Router -->> Frontend: 401 Unauthorized
+          Frontend -->> User: Show error "Please log in"
+        else Authorized
+          Middleware -->> Router: Route to Router
+          deactivate Middleware
+          Router -> ClassController: .DeleteUser(userId)
+          activate ClassController
+          ClassController -> ClassService: .DeleteUser(userId)
+          activate ClassService
+          ClassService -> ClassRepository: .DeleteUser(userId)
+          activate ClassRepository
+          ClassRepository -> Database: DELETE FROM user_classes WHERE user_id = @user_id
+          activate Database
+          Database -->> ClassRepository : Deleted, Error
+          deactivate Database
+          ClassRepository -> Database: DELETE FROM user_courses WHERE user_id = @user_id
+          activate Database
+          Database -->> ClassRepository : Deleted, Error
+          ClassRepository -->> ClassService : Deleted, Error
+          opt Error == Null
+            deactivate Database
+            deactivate ClassRepository
+
+            ClassService -> LogRepository: .DeleteUserLogs(userId)
+            activate LogRepository
+            LogRepository -> Database: DELETE FROM quiz_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -> Database: DELETE FROM choice_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -> Database: DELETE FROM ordering_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -> Database: DELETE FROM missing_words_histories WHERE user_id = @user_id
+            activate Database
+            Database -->> LogRepository : Deleted, Error
+            deactivate Database
+            LogRepository -->> ClassService : Deleted, Error
+            deactivate LogRepository
+          end
+
+          ClassService -->> ClassController : Deleted, Error
+          deactivate ClassService
+          alt Error != Null
+            ClassController -->> Router: 500 Internal Server Error
+            Router -->> Frontend: 500 Internal Server Error
+            Frontend -->> User: Show error "Failed to Delete user"
+          else
+            ClassController -->> Router: 200 OK
+            Router -->> Frontend: 200 OK
+            Frontend -->> User: Show message "Delete User successfully"
+          end
+        end
+      end
+    end
+  end
+end
+@enduml
