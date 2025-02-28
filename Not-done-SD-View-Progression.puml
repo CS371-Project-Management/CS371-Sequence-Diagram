@@ -1,0 +1,102 @@
+@startuml
+title View Progression (Sequence Diagram - Basic Flow)
+
+actor "ผู้ใช้" as User
+'นึก q'
+'--- Phase 1: ดึงข้อมูล Class ---
+participant "Frontend" as FE
+participant "Router" as Router
+participant "Middleware" as MW
+participant "Class Controller" as ClassCtrl
+participant "Class Service" as ClassServ
+participant "Class Repository" as ClassRepo
+participant "Course Controller" as CourseCtrl
+participant "Course Service" as CourseServ
+participant "Course Repository" as CourseRepo
+participant "Database" as DB
+
+' ระบบดึงข้อมูล class ที่ผู้ใช้เข้าร่วม
+FE -> Router: GET /api/classes?admin=true
+activate Router
+Router -> MW: validateSession()
+activate MW
+MW -> Router: session validated
+deactivate MW
+Router -> ClassCtrl: getAdminClasses(userID)
+activate ClassCtrl
+ClassCtrl -> ClassServ: getAdminClasses(userID)
+activate ClassServ
+ClassServ -> ClassRepo: selectClassesByAdmin(userID)
+activate ClassRepo
+ClassRepo -> DB: SELECT id, name, description, privacy FROM classes WHERE owner_id = ?
+activate DB
+DB --> ClassRepo: classList (or emptyList)
+deactivate DB
+alt หากพบข้อมูล class
+    ClassRepo --> ClassServ: classList
+    ClassServ --> ClassCtrl: classList
+    ClassCtrl --> Router: successResponse(200, classList)   ' (2a.1 และ 2a.2)
+else หากไม่พบข้อมูล class
+    ClassRepo --> ClassServ: emptyList
+    ClassServ --> ClassCtrl: returnError("ไม่พบข้อมูล class")
+    ClassCtrl --> Router: errorResponse(404, "ไม่พบข้อมูล class")   ' (2b.1 และ 2b.2)
+end
+deactivate ClassRepo
+deactivate ClassServ
+deactivate ClassCtrl
+Router --> FE: response (classList or error)
+deactivate Router
+FE -> User: แสดงผล class ทั้งหมด
+
+'--- Phase 2: ดึงข้อมูล Course ---
+
+' ผู้ใช้เลือก class ที่ต้องการ
+User -> FE: เลือก class ที่ต้องการ
+FE -> Router: GET /api/courses?classID={classID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> Router: request validated
+deactivate MW
+Router -> CourseCtrl: getCourses(classID)
+activate CourseCtrl
+CourseCtrl -> CourseServ: getCourses(classID)
+activate CourseServ
+CourseServ -> CourseRepo: selectCoursesByClass(classID)
+activate CourseRepo
+CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+activate DB
+DB --> CourseRepo: courseList (or emptyList)
+deactivate DB
+alt หากพบข้อมูล course
+    CourseRepo --> CourseServ: courseList
+    CourseServ --> CourseCtrl: courseList
+    CourseCtrl --> Router: successResponse(200, courseList)   ' (5a.1 และ 5a.2)
+else หากไม่พบข้อมูล course
+    CourseRepo --> CourseServ: emptyList
+    CourseServ --> CourseCtrl: returnError("ไม่พบข้อมูล course")
+    CourseCtrl --> Router: errorResponse(404, "ไม่พบข้อมูล course")   ' (5b.1 และ 5b.2)
+end
+deactivate CourseRepo
+deactivate CourseServ
+deactivate CourseCtrl
+Router --> FE: response (courseList or error)
+deactivate Router
+FE -> User: แสดงผล course ทั้งหมด
+
+'--- Phase 3: ดึงข้อมูล Progress ---
+' ผู้ใช้เลือก course ที่ต้องการและกด "ดูความคืบหน้า"
+User -> FE: เลือก course และกด "ดูความคืบหน้า"
+FE -> Router: GET /api/progress?courseID={courseID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> Router: request validated
+deactivate MW
+
+
+deactivate Router
+FE -> User: แสดงผลความคืบหน้า
+User -> FE: ตรวจสอบความคืบหน้า
+
+@enduml

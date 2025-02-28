@@ -1,0 +1,131 @@
+@startuml
+title Edit Course
+
+actor User
+participant "Frontend" as FE
+participant "Router" as Router
+participant "Middleware" as MW
+participant "Course Controller" as Controller
+participant "Course Service" as Service
+participant "Course Repository" as Repository
+participant "Database" as DB
+
+'Phase 1: Retrieve Admin Classes'
+activate FE
+FE -> Router: GET /api/classes?admin=true
+activate Router
+Router -> MW: validateSession()
+activate MW
+MW -> Controller: getAdminClasses(userID)
+deactivate MW
+activate Controller
+Controller -> Service: getAdminClasses(userID)
+activate Service
+Service -> Repository: selectClassesByAdmin(userID)
+activate Repository
+Repository -> DB: SELECT id, name, ... FROM classes WHERE owner_id = ?
+activate DB
+DB --> Repository: classList
+deactivate DB
+alt No classes found (2b.1)
+    Repository --> Service: emptyList
+    deactivate Repository
+    Service -> Controller: returnError("ไม่พบข้อมูล class")
+    deactivate Service
+    Controller -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+    Router -> FE: errorResponse(404, "ไม่พบข้อมูล class")
+else Classes found (2a.1)
+    Repository --> Service: classList
+    deactivate Repository
+    Service --> Controller: classList
+    deactivate Service
+    Controller -> Router: successResponse(200, classList)
+    Router -> FE: successResponse(200, classList)
+end
+deactivate Router
+FE -> User: displayClassesList(classList)
+
+'Phase 2: Retrieve Courses for Selected Class'
+User -> FE: selectClass(classID)
+FE -> Router: GET /api/courses?classID={classID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> Controller: getCourses(classID)
+deactivate MW
+activate Controller
+Controller -> Service: getCourses(classID)
+activate Service
+Service -> Repository: selectCoursesByClass(classID)
+activate Repository
+Repository -> DB: SELECT id, title, description, ... FROM courses WHERE class_id = ?
+activate DB
+DB --> Repository: courseList
+deactivate DB
+alt No courses found (5b.1)
+    Repository --> Service: emptyList
+    deactivate Repository
+    Service -> Controller: returnError("ไม่พบข้อมูล course")
+    deactivate Service
+    Controller -> Router: errorResponse(404, "ไม่พบข้อมูล course")
+    Router -> FE: errorResponse(404, "ไม่พบข้อมูล course")
+else Courses found (5a.1)
+    Repository --> Service: courseList
+    deactivate Repository
+    Service --> Controller: courseList
+    deactivate Service
+    Controller -> Router: successResponse(200, courseList)
+    Router -> FE: successResponse(200, courseList)
+end
+deactivate Router
+FE -> User: displayCoursesList(courseList)
+
+'Phase 3: Edit Course'
+User -> FE: selectCourse(courseID)
+FE -> FE: displayEditCourseForm(courseDetails)
+
+User -> FE: editCourseForm(updatedData, courseID)
+FE -> Router: POST /api/courses/edit {courseID, updatedData}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> Controller: editCourse(courseID, updatedData)
+deactivate MW
+activate Controller
+Controller -> Controller: validateUpdatedData(updatedData)
+alt Data invalid (10b.1)
+    Controller -> Router: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    deactivate Controller
+    deactivate Router
+else Data valid (10a.1)
+    Controller -> Service: editCourse(courseID, updatedData)
+    activate Service
+    Service -> Repository: updateCourse(courseID, updatedData)
+    activate Repository
+    Repository -> DB: UPDATE courses SET title=?, description=?, ... WHERE id=?
+    activate DB
+    DB --> Repository: affectedRows
+    deactivate DB
+    alt Update failure (12b.1)
+        Repository -> Service: returnError("Edit failed")
+        deactivate Repository
+        Service -> Controller: returnError("Edit failed")
+        deactivate Service
+        Controller -> Router: errorResponse(500, "Course update failed")
+        Router -> FE: errorResponse(500, "Course update failed")
+    else Update success (12a.1)
+        Repository --> Service: updatedCourseRecord
+        deactivate Repository
+        Service --> Controller: updatedCourseRecord
+        deactivate Service
+        Controller -> Router: successResponse(200, "Course updated successfully", updatedCourseRecord)
+        Router -> FE: successResponse(200, "Course updated successfully", updatedCourseRecord)
+        FE -> User: displayMessage("Course updated successfully")
+    end
+end
+deactivate Controller
+deactivate Router
+deactivate FE
+
+@enduml
