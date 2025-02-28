@@ -1,0 +1,218 @@
+@startuml
+title Delete Quiz Sequence Diagram
+
+actor "ผู้ใช้" as User
+participant "Frontend" as FE
+participant "Router" as Router
+participant "Middleware" as MW
+
+' --- Class Module ---
+participant "Class Controller" as ClassCtrl
+participant "Class Service" as ClassServ
+participant "Class Repository" as ClassRepo
+
+' --- Course Module ---
+participant "Course Controller" as CourseCtrl
+participant "Course Service" as CourseServ
+participant "Course Repository" as CourseRepo
+
+' --- Quiz Module ---
+participant "Quiz Controller" as QuizCtrl
+participant "Quiz Service" as QuizServ
+participant "Quiz Repository" as QuizRepo
+
+participant "Database" as DB
+
+'---------------------- Phase 1: Retrieve Classes Administered by User ----------------------
+FE -> Router: GET /api/classes?admin=true
+activate Router
+Router -> MW: validateSession()
+activate MW
+MW -> ClassCtrl: getAdminClasses(userID)
+deactivate MW
+activate ClassCtrl
+ClassCtrl -> ClassServ: getAdminClasses(userID)
+activate ClassServ
+ClassServ -> ClassRepo: selectClassesByAdmin(userID)
+activate ClassRepo
+ClassRepo -> DB: SELECT id, name, description FROM classes WHERE owner_id = ?
+activate DB
+DB --> ClassRepo: [classList]
+deactivate DB
+alt Class Not found
+    ClassRepo --> ClassServ: [Null]
+    ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
+    ClassCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล class")
+    FE -> User: แสดงข้อความ "ไม่พบข้อมูล class"
+else Found
+    ClassRepo --> ClassServ: [classList]
+    ClassServ --> ClassCtrl: [classList]
+    ClassCtrl -> Router: successResponse(200, classList)
+    Router --> FE: successResponse(200, classList)
+    FE -> User: แสดงรายการ class
+
+deactivate ClassCtrl
+deactivate Router
+
+'---------------------- Phase 2: Retrieve Courses within Selected Class ----------------------
+User -> FE: เลือก class ที่ต้องการ
+FE -> Router: GET /api/courses?classID={classID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> CourseCtrl: getCourses(classID)
+deactivate MW
+activate CourseCtrl
+CourseCtrl -> CourseServ: getCourses(classID)
+activate CourseServ
+CourseServ -> CourseRepo: selectCoursesByClass(classID)
+activate CourseRepo
+CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+activate DB
+DB --> CourseRepo: [courseList]
+deactivate DB
+alt Course Not found
+    CourseRepo --> CourseServ: [Null]
+    CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
+    CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
+    FE -> User: แสดงข้อความ "ไม่พบข้อมูล course"
+else Found
+    CourseRepo --> CourseServ: [courseList]
+    CourseServ --> CourseCtrl: [courseList]
+    CourseCtrl -> Router: successResponse(200, courseList)
+    Router --> FE: successResponse(200, courseList)
+    FE -> User: แสดงรายการ course
+
+deactivate CourseCtrl
+deactivate Router
+
+'---------------------- Phase 3: Retrieve Quizzes within Selected Course ----------------------
+User -> FE: เลือก course ที่ต้องการ
+FE -> Router: GET /api/quizzes?courseID={courseID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> QuizCtrl: getQuizzes(courseID)
+deactivate MW
+activate QuizCtrl
+QuizCtrl -> QuizServ: getQuizzes(courseID)
+activate QuizServ
+QuizServ -> QuizRepo: selectQuizzesByCourse(courseID)
+activate QuizRepo
+QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [quizList]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM choice_quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [choiceQuizzes]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM choice_answers WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [choiceAnswers]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM ordering_quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [orderingQuizzes]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM ordering_answers WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [orderingAnswers]
+deactivate DB
+QuizRepo -> DB: SELECT id FROM missing_words_quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [missingWordsQuizzes]
+deactivate DB
+alt Quiz Not found
+    QuizRepo --> QuizServ: []
+    QuizServ -> QuizCtrl: returnError("ไม่พบข้อมูล quiz")
+    QuizCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล quiz")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล quiz")
+    FE -> User: แสดงข้อความ "ไม่พบข้อมูล quiz"
+else Found
+    QuizRepo --> QuizServ: [quizData]
+    QuizServ --> QuizCtrl: [quizData]
+    QuizCtrl -> Router: successResponse(200, quizData)
+    Router --> FE: successResponse(200, quizData)
+    FE -> User: แสดงรายการ quiz
+
+deactivate QuizCtrl
+deactivate Router
+
+'---------------------- Phase 4: Delete Selected Quiz ----------------------
+User -> FE: เลือก quiz ที่ต้องการลบ แล้วกด "ลบ quiz" และ "ยืนยันการลบ quiz"
+FE -> Router: DELETE /api/quizzes?quizID={quizID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> QuizCtrl: deleteQuiz(quizID)
+deactivate MW
+activate QuizCtrl
+QuizCtrl -> QuizServ: deleteQuiz(quizID)
+activate QuizServ
+QuizServ -> QuizRepo: deleteQuiz(quizID)
+activate QuizRepo
+QuizRepo -> DB: DELETE FROM quizzes WHERE id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM choice_quizzes WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM choice_answers WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM ordering_quizzes WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM ordering_answers WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM missing_words_quizzes WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM quiz_histories WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM choice_histories WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM ordering_histories WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+QuizRepo -> DB: DELETE FROM missing_words_histories WHERE quiz_id = ?
+activate DB
+DB --> QuizRepo: success
+deactivate DB
+alt Deletion Failed
+    QuizRepo --> QuizServ: returnError("ไม่สามารถลบ quiz ได้")
+    QuizServ -> QuizCtrl: returnError("ไม่สามารถลบ quiz ได้")
+    QuizCtrl -> Router: errorResponse(500, "ไม่สามารถลบ quiz ได้")
+    Router --> FE: errorResponse(500, "ไม่สามารถลบ quiz ได้")
+    FE -> User: แสดงข้อความ "ไม่สามารถลบ quiz ได้"
+else Deletion Successful
+    QuizRepo --> QuizServ: success
+    QuizServ --> QuizCtrl: success
+    QuizCtrl -> Router: successResponse(200, "ลบ quiz สำเร็จ")
+    Router --> FE: successResponse(200, "ลบ quiz สำเร็จ")
+    FE -> User: แสดงข้อความ "ลบ quiz สำเร็จ"
+end
+end
+end
+end
+deactivate QuizRepo
+deactivate QuizServ
+deactivate QuizCtrl
+deactivate Router
+
+@enduml
