@@ -7,7 +7,7 @@ participant Router
 participant "Middleware" as MW
 participant "User Controller" as Controller
 participant "User Service" as Service
-participant "User Repository " as Repository
+participant "User Repository" as Repository
 participant "Database" as DB
 
 'Retrieve User Profile'
@@ -49,16 +49,16 @@ MW -> Controller: editUserProfile(updatedData, currentPassword)
 deactivate MW
 activate Controller
 Controller -> Controller: validateUpdatedData()
-alt invalidData (4.1a)
+alt invalidData (6b.1)
     Controller -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
-    deactivate Controller
     deactivate Router
 else validData
     Controller -> Service: editUserProfile(updatedData, currentPassword)
+    deactivate Controller
     activate Service
     Service -> Service: verifyCurrentPassword(userID, currentPassword)
-    alt passwordIncorrect (8.1a)
+    alt passwordIncorrect (9b.1)
         Service -> Controller: returnError("รหัสผ่านไม่ถูกต้อง")
         deactivate Service
         Controller -> Router: errorResponse(401, "รหัสผ่านไม่ถูกต้อง")
@@ -69,10 +69,12 @@ else validData
     else passwordCorrect
         Service -> Repository: updateUserProfile(userID, updatedData)
         activate Repository
-        Repository -> DB: UPDATE users SET ... WHERE id=:userID 'แก้อะไรได้บ้าง'
+        Repository -> DB: UPDATE users SET ... WHERE id=:userID
         activate DB
         DB -->> Repository: affectedRows
         deactivate DB
+
+        alt updateSuccess (11a.1)
             Repository -> Service: success(updatedUserRecord)
             deactivate Repository
             Service -> Controller: success(updatedUserRecord)
@@ -83,6 +85,18 @@ else validData
             deactivate MW
             deactivate Router
             FE -> User: displayMessage("แก้ไขบัญชีผู้ใช้สำเร็จ")
+        else updateFailed (11b.1)
+            Repository -> Service: failure()
+            deactivate Repository
+            Service -> Controller: returnError("การแก้ไขบัญชีผู้ใช้ล้มเหลว")
+            deactivate Service
+            Controller -> Router: errorResponse(500, "การแก้ไขบัญชีผู้ใช้ล้มเหลว")
+            Router -> FE: errorResponse(500, "การแก้ไขบัญชีผู้ใช้ล้มเหลว")
+            deactivate Controller
+            deactivate MW
+            deactivate Router
+            FE -> User: displayMessage("เกิดข้อผิดพลาด ไม่สามารถแก้ไขบัญชีได้")
+        end
     end
 end
 deactivate FE

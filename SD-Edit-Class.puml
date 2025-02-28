@@ -1,5 +1,5 @@
 @startuml
-title Edit Class Flow
+title Edit Class Flow (Revised)
 
 actor User
 participant "Frontend" as FE
@@ -27,13 +27,22 @@ Repository -> DB: SELECT id, name, description, privacy FROM classes WHERE owner
 activate DB
 DB --> Repository: classList
 deactivate DB
-Repository --> Service: classList
-deactivate Repository
-Service --> Controller: classList
-deactivate Service
-Controller --> Router: successResponse(200, classList)
-deactivate Controller
-Router --> FE: successResponse(200, classList)
+alt No classes found (2b.1)
+    Repository --> Service: emptyList
+    deactivate Repository
+    Service -> Controller: returnError("ไม่พบข้อมูล class")
+    deactivate Service
+    Controller -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+    Router -> FE: errorResponse(404, "ไม่พบข้อมูล class")
+else Classes found (2a.1)
+    Repository --> Service: classList
+    deactivate Repository
+    Service --> Controller: classList
+    deactivate Service
+    Controller --> Router: successResponse(200, classList)
+    deactivate Controller
+    Router --> FE: successResponse(200, classList)
+end
 deactivate Router
 FE -> User: displayClassesList(classList)
 
@@ -50,12 +59,12 @@ MW -> Controller: editClass(classID, updatedData)
 deactivate MW
 activate Controller
 Controller -> Controller: validateUpdatedData(updatedData)
-alt invalidData (7.1a)
-    Controller -> Router: returnError("Data incomplete/incorrect")
-    Router -> FE: errorResponse(400, "Data incomplete/incorrect")
+alt invalidData (7b.1)
+    Controller -> Router: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     deactivate Controller
     deactivate Router
-else validData (7.1)
+else validData (7a.1)
     Controller -> Service: editClass(classID, updatedData)
     activate Service
     Service -> Repository: updateClass(classID, updatedData)
@@ -64,7 +73,7 @@ else validData (7.1)
     activate DB
     DB --> Repository: affectedRows
     deactivate DB
-    alt updateFailure
+    alt updateFailure (9b.1)
         Repository -> Service: returnError("Edit failed")
         deactivate Repository
         Service -> Controller: returnError("Edit failed")
@@ -74,7 +83,7 @@ else validData (7.1)
         deactivate Controller
         deactivate MW
         deactivate Router
-    else updateSuccess (5.1)
+    else updateSuccess (9a.1)
         Repository --> Service: returnClassRecord(updatedClass)
         deactivate Repository
         Service --> Controller: returnClassRecord(updatedClass)
