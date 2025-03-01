@@ -16,12 +16,6 @@ participant "Course Controller" as CourseCtrl
 participant "Course Service" as CourseServ
 participant "Course Repository" as CourseRepo
 
-' --- Report Module ---
-participant "Report Controller" as ReportCtrl
-participant "Report Service" as ReportServ
-' ใช้ Quiz Repository สำหรับดึงข้อมูลประวัติแบบทดสอบ
-participant "Quiz Repository" as QuizRepo
-
 participant "Database" as DB
 
 '================= Phase 1: ดึงข้อมูล Class ที่ผู้ใช้เข้าร่วม =================
@@ -40,6 +34,7 @@ ClassRepo -> DB: SELECT id, name, description FROM classes WHERE user_id = ?
 activate DB
 DB --> ClassRepo: [classList]
 deactivate DB
+
 alt ไม่พบข้อมูล class
    ClassRepo --> ClassServ: []
        ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
@@ -48,8 +43,10 @@ alt ไม่พบข้อมูล class
        FE -> User: แสดงข้อความ "ไม่พบข้อมูล class"
 else พบข้อมูล class
     ClassRepo --> ClassServ: [classList]
+    deactivate ClassRepo
         ClassServ --> ClassCtrl: [classList]
         ClassCtrl --> Router: successResponse(200, classList)
+        deactivate ClassServ
         Router --> FE: successResponse(200, classList)
         FE -> User: แสดงรายการ class
 deactivate ClassCtrl
@@ -81,6 +78,7 @@ alt ไม่พบข้อมูล course
 else พบข้อมูล course
 CourseRepo --> CourseServ: [courseList]
     CourseServ --> CourseCtrl: [courseList]
+    deactivate ClassCtrl
     CourseCtrl --> Router: successResponse(200, courseList)
     Router --> FE: successResponse(200, courseList)
     FE -> User: แสดงรายการ course
@@ -98,62 +96,59 @@ FE -> Router: GET /api/quizReport?courseID={courseID}
 activate Router
 Router -> MW: validateRequest()
 activate MW
-MW -> ReportCtrl: getQuizReport(courseID, userID)
+MW -> CourseCtrl: getQuizReport(courseID, userID)
 deactivate MW
-activate ReportCtrl
-ReportCtrl -> ReportServ: getQuizReport(courseID, userID)
-activate ReportServ
-ReportServ -> QuizRepo: selectQuizReportData(courseID, userID)
-activate QuizRepo
-QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+activate CourseCtrl
+CourseCtrl -> CourseServ: getQuizReport(courseID, userID)
+activate CourseServ
+CourseServ -> CourseRepo: selectQuizReportData(courseID, userID)
+CourseRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
 activate DB
-DB --> QuizRepo: [quizList]
+DB --> CourseRepo: [quizList]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM quiz_histories WHERE course_id = ? AND user_id = ?
+CourseRepo -> DB: SELECT id FROM quiz_histories WHERE course_id = ? AND user_id = ?
 activate DB
-DB --> QuizRepo: [quizHistories]
+DB --> CourseRepo: [quizHistories]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM choice_histories WHERE course_id = ? AND user_id = ?
+CourseRepo -> DB: SELECT id FROM choice_histories WHERE course_id = ? AND user_id = ?
 activate DB
-DB --> QuizRepo: [choiceHistories]
+DB --> CourseRepo: [choiceHistories]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM ordering_histories WHERE course_id = ? AND user_id = ?
+CourseRepo -> DB: SELECT id FROM ordering_histories WHERE course_id = ? AND user_id = ?
 activate DB
-DB --> QuizRepo: [orderingHistories]
+DB --> CourseRepo: [orderingHistories]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM missing_words_histories WHERE course_id = ? AND user_id = ?
+CourseRepo -> DB: SELECT id FROM missing_words_histories WHERE course_id = ? AND user_id = ?
 activate DB
-DB --> QuizRepo: [missingWordsHistories]
+DB --> CourseRepo: [missingWordsHistories]
 deactivate DB
-QuizRepo --> ReportServ: [quizReportData]
-deactivate QuizRepo
+CourseRepo --> CourseServ: [quizReportData]
+deactivate CourseRepo
+deactivate CourseRepo
 
-ReportServ -> ReportServ: check completeness of quiz histories
+CourseServ -> CourseServ: check completeness of quiz histories
 alt ประวัติไม่ครบ
-    ReportServ --> ReportCtrl: returnError("ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
-    ReportCtrl --> Router: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
+    CourseServ --> CourseCtrl: returnError("ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
+    CourseCtrl --> Router: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
     Router --> FE: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
     FE -> User: แสดงข้อความ "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ"
 else
-    ReportServ -> ReportServ: calculate report result
+    CourseServ -> CourseServ: calculate report result
     alt คำนวณผลสำเร็จ
-         ReportServ --> ReportCtrl: reportResult
-         ReportCtrl --> Router: successResponse(200, reportResult)
+         CourseServ --> CourseCtrl: reportResult
+         CourseCtrl --> Router: successResponse(200, reportResult)
          Router --> FE: successResponse(200, reportResult)
          FE -> User: แสดงผลคะแนนและรายงานผลแบบทดสอบ
     else คำนวณผลไม่สำเร็จ
-         ReportServ --> ReportCtrl: returnError("เกิดข้อผิดพลาดในการคำนวณ")
-         ReportCtrl --> Router: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
+         CourseServ --> CourseCtrl: returnError("เกิดข้อผิดพลาดในการคำนวณ")
+         CourseCtrl --> Router: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
+         deactivate CourseCtrl
          Router --> FE: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
+         deactivate Router
          FE -> User: แสดงข้อความ "เกิดข้อผิดพลาดในการคำนวณ"
     end
 end
 end
-deactivate ReportServ
-deactivate ReportCtrl
-deactivate Router
-end
-'================= Phase 5: (ถ้ามี) กรณีเพิ่มเติมอื่น ๆ =================
-' (สามารถเพิ่ม Flow สำหรับกรณีอื่นได้ตามที่กำหนดใน Alternate flows)
-
+deactivate CourseServ
+deactivate CourseCtrl
 @enduml
