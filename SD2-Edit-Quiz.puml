@@ -89,7 +89,7 @@ else Authorized
         activate CourseService
         CourseService -> CourseRepository: .GetAllCourses(classId)
         activate CourseRepository
-        CourseRepository -> Database: SELECT * FROM courses WHERE class_id = @class_id
+        CourseRepository -> Database: SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;
         activate Database
         Database -->> CourseRepository : Courses, Error
         deactivate Database

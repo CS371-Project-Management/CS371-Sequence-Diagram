@@ -68,7 +68,7 @@ CourseCtrl -> CourseServ: getCourses(classID)
 activate CourseServ
 CourseServ -> CourseRepo: selectCoursesByClass(classID)
 activate CourseRepo
-CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+CourseRepo -> DB: SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;
 activate DB
 DB --> CourseRepo: [courseList]
 deactivate DB
