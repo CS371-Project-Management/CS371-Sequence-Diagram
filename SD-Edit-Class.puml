@@ -23,7 +23,7 @@ Controller -> Service: getAdminClasses(userID)
 activate Service
 Service -> Repository: selectClassesByAdmin(userID)
 activate Repository
-Repository -> DB: SELECT id, name, description, privacy FROM classes WHERE owner_id = ?
+Repository -> DB: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
 activate DB
 DB --> Repository: classList
 deactivate DB

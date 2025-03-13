@@ -35,7 +35,7 @@ ClassCtrl -> ClassServ: getAdminClasses(userID)
 activate ClassServ
 ClassServ -> ClassRepo: selectClassesByAdmin(userID)
 activate ClassRepo
-ClassRepo -> DB: SELECT id, name, description FROM classes WHERE owner_id = ?
+ClassRepo -> DB: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
 activate DB
 DB --> ClassRepo: [classList]
 deactivate DB

@@ -43,7 +43,7 @@ else Authorized
   activate ClassService
   ClassService -> ClassRepository: .GetAllClasses()
   activate ClassRepository
-  ClassRepository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  ClassRepository -> Database: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
   activate Database
   Database -->> ClassRepository : Classes, Error
   deactivate Database
@@ -88,7 +88,7 @@ else Authorized
       activate CourseService
       CourseService -> CourseRepository: .GetAllCourses(classId)
       activate CourseRepository
-      CourseRepository -> Database: SELECT * FROM courses WHERE class_id = @class_id
+      CourseRepository -> Database: SELECT course_id, class_id, title, description, difficult_level, number FROM Courses WHERE class_id = <class_id>;
       activate Database
       Database -->> CourseRepository : Courses, Error
       deactivate Database

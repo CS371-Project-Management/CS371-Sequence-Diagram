@@ -34,7 +34,7 @@ else Authorized
   activate ClassService
   ClassService -> ClassRepository: .GetAllClasses()
   activate ClassRepository
-  ClassRepository -> Database: SELECT * FROM classes WHERE owner_id = @user_id
+  ClassRepository -> Database: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
   activate Database
   Database -->> ClassRepository : Classes, Error
   deactivate Database
