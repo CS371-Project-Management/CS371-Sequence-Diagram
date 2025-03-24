@@ -23,7 +23,7 @@ participant "Quiz Repository" as QuizRepo
 
 participant "Database" as DB
 
-'============== Phase 1: ดึงข้อมูล Class ที่ผู้ใช้เข้าร่วม ==============
+'==================== Phase 1: ดึงข้อมูล Class ====================
 FE -> Router: GET /api/classes?joined=true
 activate Router
 Router -> MW: validateSession()
@@ -51,183 +51,222 @@ else พบข้อมูล class
     ClassCtrl --> Router: successResponse(200, classList)
     Router --> FE: successResponse(200, classList)
     FE -> User: แสดงรายการ class
+end
+deactivate ClassCtrl
+deactivate Router
 
-    '============== Phase 2: ดึงข้อมูล Course ภายใน Class ที่เลือก ==============
-    User -> FE: เลือก class ที่ต้องการ
-    FE -> Router: GET /api/courses?classID={classID}
-    activate Router
-    Router -> MW: validateRequest()
-    activate MW
-    MW -> CourseCtrl: getCourses(classID)
-    deactivate MW
-    activate CourseCtrl
-    CourseCtrl -> CourseServ: getCourses(classID)
-    activate CourseServ
-    CourseServ -> CourseRepo: selectCoursesByClass(classID)
-    activate CourseRepo
-    CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
-    activate DB
-    DB --> CourseRepo: [courseList]
-    deactivate DB
-    alt ไม่พบข้อมูล course
-         CourseRepo --> CourseServ: []
-         CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
-         CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
-         Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
-         FE -> User: แสดงข้อความ "ไม่พบข้อมูล course"
-    else พบข้อมูล course
-         CourseRepo --> CourseServ: [courseList]
-         CourseServ --> CourseCtrl: [courseList]
-         CourseCtrl --> Router: successResponse(200, courseList)
-         Router --> FE: successResponse(200, courseList)
-         FE -> User: แสดงรายการ course
+'==================== Phase 2: ดึงข้อมูล Course ====================
+User -> FE: เลือก class ที่ต้องการ
+FE -> Router: GET /api/courses?classID={classID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> CourseCtrl: getCourses(classID)
+deactivate MW
+activate CourseCtrl
+CourseCtrl -> CourseServ: getCourses(classID)
+activate CourseServ
+CourseServ -> CourseRepo: selectCoursesByClass(classID)
+activate CourseRepo
+CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+activate DB
+DB --> CourseRepo: [courseList]
+deactivate DB
+alt ไม่พบข้อมูล course
+     CourseRepo --> CourseServ: []
+     CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
+     CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
+     Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
+     FE -> User: แสดงข้อความ "ไม่พบข้อมูล course"
+else พบข้อมูล course
+     CourseRepo --> CourseServ: [courseList]
+     CourseServ --> CourseCtrl: [courseList]
+     CourseCtrl --> Router: successResponse(200, courseList)
+     Router --> FE: successResponse(200, courseList)
+     FE -> User: แสดงรายการ course
+end
+deactivate CourseCtrl
+deactivate Router
 
-         '============== Phase 3: ดึงข้อมูล Quiz ภายใน Course ที่เลือก ==============
-         User -> FE: เลือก course ที่ต้องการ
-         FE -> Router: GET /api/quizzes?courseID={courseID}
-         activate Router
-         Router -> MW: validateRequest()
-         activate MW
-         MW -> QuizCtrl: getQuizzes(courseID)
-         deactivate MW
-         activate QuizCtrl
-         QuizCtrl -> QuizServ: getQuizzes(courseID)
-         activate QuizServ
-         QuizServ -> QuizRepo: selectQuizzesByCourse(courseID)
-         activate QuizRepo
-         QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
-         activate DB
-         DB --> QuizRepo: [quizBaseList]
-         deactivate DB
-         QuizRepo -> DB: SELECT quiz_id, some_field FROM choice_quizzes WHERE course_id = ?
-         activate DB
-         DB --> QuizRepo: [choiceQuizzes]
-         deactivate DB
-         QuizRepo -> DB: SELECT choice_quiz_id, answer_text FROM choice_answers WHERE course_id = ?
-         activate DB
-         DB --> QuizRepo: [choiceAnswers]
-         deactivate DB
-         QuizRepo -> DB: SELECT quiz_id, some_field FROM ordering_quizzes WHERE course_id = ?
-         activate DB
-         DB --> QuizRepo: [orderingQuizzes]
-         deactivate DB
-         QuizRepo -> DB: SELECT ordering_quiz_id, answer_sequence FROM ordering_answers WHERE course_id = ?
-         activate DB
-         DB --> QuizRepo: [orderingAnswers]
-         deactivate DB
-         QuizRepo -> DB: SELECT quiz_id, some_field FROM missing_words_quizzes WHERE course_id = ?
-         activate DB
-         DB --> QuizRepo: [missingWordsQuizzes]
-         deactivate DB
-         QuizRepo --> QuizServ: [quizBaseList, choiceQuizzes, choiceAnswers, orderingQuizzes, orderingAnswers, missingWordsQuizzes]
-         deactivate QuizRepo
-         QuizServ --> QuizCtrl: [quizList]
-         deactivate QuizServ
-         QuizCtrl --> Router: successResponse(200, quizList)
-         Router --> FE: successResponse(200, quizList)
-         FE -> User: แสดงรายการ quiz
-         deactivate QuizCtrl
-         deactivate Router
+'==================== Phase 3: ดึงข้อมูล Quiz ====================
+User -> FE: เลือก course ที่ต้องการ
+FE -> Router: GET /api/quizzes?courseID={courseID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> QuizCtrl: getQuizzes(courseID)
+deactivate MW
+activate QuizCtrl
+QuizCtrl -> QuizServ: getQuizzes(courseID)
+activate QuizServ
+QuizServ -> QuizRepo: selectQuizzesByCourse(courseID)
+activate QuizRepo
 
-         '============== Phase 4: ดึงข้อมูลประวัติการทำ Quiz ==============
-         User -> FE: เลือก quiz ที่ต้องการ
-         FE -> Router: GET /api/quizHistory?quizID={quizID}
-         activate Router
-         Router -> MW: validateRequest()
-         activate MW
-         MW -> QuizCtrl: getQuizHistory(quizID, userID)
-         deactivate MW
-         activate QuizCtrl
-         QuizCtrl -> QuizServ: getQuizHistory(quizID, userID)
-         activate QuizServ
-         QuizServ -> QuizRepo: selectQuizHistory(quizID, userID)
-         activate QuizRepo
-         QuizRepo -> DB: SELECT id, user_id, quiz_id, note FROM quiz_histories WHERE quiz_id = ? AND user_id = ?
-         activate DB
-         DB --> QuizRepo: [quizHistories]
-         deactivate DB
-         QuizRepo -> DB: SELECT history_id, selected_choice FROM choice_histories WHERE quiz_id = ? AND user_id = ?
-         activate DB
-         DB --> QuizRepo: [choiceHistories]
-         deactivate DB
-         QuizRepo -> DB: SELECT history_id, answer_sequence FROM ordering_histories WHERE quiz_id = ? AND user_id = ?
-         activate DB
-         DB --> QuizRepo: [orderingHistories]
-         deactivate DB
-         QuizRepo -> DB: SELECT history_id, missing_word FROM missing_words_histories WHERE quiz_id = ? AND user_id = ?
-         activate DB
-         DB --> QuizRepo: [missingWordsHistories]
-         deactivate DB
-         QuizRepo --> QuizServ: [quizHistories, choiceHistories, orderingHistories, missingWordsHistories]
-         deactivate QuizRepo
-         QuizServ --> QuizCtrl: [quizHistory]
-         alt ไม่พบประวัติ
-              QuizCtrl -> Router: successResponse(200, "noHistory")
-              Router --> FE: successResponse(200, "noHistory")
-              FE -> User: แสดง quiz โดยไม่มีประวัติ
-         else พบประวัติ
-              QuizCtrl -> Router: successResponse(200, quizHistory)
-              Router --> FE: successResponse(200, quizHistory)
-              FE -> User: แสดง quiz พร้อมประวัติ
-         end
-         deactivate QuizCtrl
-         deactivate Router
+' ดึงข้อมูล quiz หลัก (7.1)
+QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [quizBaseList]
+deactivate DB
 
-         '============== Phase 5: ผู้ใช้ทำ Quiz และส่งคำตอบ ==============
-         User -> FE: ทำแบบทดสอบและกด "บันทึกคำตอบ"
-         FE -> Router: POST /api/quizAnswers
-         activate Router
-         Router -> MW: validateRequest()
-         activate MW
-         MW -> QuizCtrl: saveQuizAnswers(answersData, userID, quizID)
-         deactivate MW
-         activate QuizCtrl
-         QuizCtrl -> QuizServ: saveQuizAnswers(answersData, userID, quizID)
-         activate QuizServ
-         alt ข้อมูลไม่ครบถ้วน
-                           QuizServ -> QuizCtrl: returnError("ข้อมูลไม่ครบถ้วน")
-                           QuizCtrl -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
-                           Router --> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
-                           FE -> User: แสดงข้อความ "ข้อมูลไม่ครบถ้วน"
+' ดึงข้อมูล choice_quizzes (7.2)
+QuizRepo -> DB: SELECT quiz_id, some_field FROM choice_quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [choiceQuizzes]
+deactivate DB
 
+' ดึงข้อมูล choice_answers (7.3)
+QuizRepo -> DB: SELECT choice_quiz_id, answer_text FROM choice_answers WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [choiceAnswers]
+deactivate DB
 
-         else ข้อมูลที่ส่งมาครบถ้วน
-              QuizServ -> QuizRepo: insertQuizHistory(...)
-              activate QuizRepo
-              QuizRepo -> DB: INSERT INTO quiz_histories (id, user_id, quiz_id, note) VALUES (?,?,?,?)
-              activate DB
-              DB --> QuizRepo: success
-              deactivate DB
-              QuizRepo -> DB: INSERT INTO choice_histories (history_id, selected_choice) VALUES (?,?)
-              activate DB
-              DB --> QuizRepo: success
-              deactivate DB
-              QuizRepo -> DB: INSERT INTO ordering_histories (history_id, answer_sequence) VALUES (?,?)
-              activate DB
-              DB --> QuizRepo: success
-              deactivate DB
-              QuizRepo -> DB: INSERT INTO missing_words_histories (history_id, missing_word) VALUES (?,?)
-              activate DB
-              DB --> QuizRepo: success
-              QuizRepo -> QuizServ:INSERT result
-              deactivate DB
-              deactivate QuizRepo
-              alt บันทึกคำตอบสำเร็จ
-                   QuizServ --> QuizCtrl: success
-                   QuizCtrl --> Router: successResponse(200, "บันทึกคำตอบสำเร็จ")
-                   Router --> FE: successResponse(200, "บันทึกคำตอบสำเร็จ")
-                   FE -> User: แสดงข้อความ "บันทึกคำตอบสำเร็จ"
-              else บันทึกคำตอบไม่สำเร็จ
-                   QuizServ -> QuizCtrl: returnError("ไม่สามารถบันทึกคำตอบได้")
-                   QuizCtrl -> Router: errorResponse(500, "บันทึกคำตอบไม่สำเร็จ")
-                   Router --> FE: errorResponse(500, "บันทึกคำตอบไม่สำเร็จ")
-                   FE -> User: แสดงข้อความ "บันทึกคำตอบไม่สำเร็จ"
-              end
+' ดึงข้อมูล ordering_quizzes (7.4)
+QuizRepo -> DB: SELECT quiz_id, some_field FROM ordering_quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [orderingQuizzes]
+deactivate DB
 
-         end
-         deactivate QuizServ
-         deactivate QuizCtrl
-         deactivate Router
-    end
-    end
+' ดึงข้อมูล ordering_answers (7.5)
+QuizRepo -> DB: SELECT ordering_quiz_id, answer_sequence FROM ordering_answers WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [orderingAnswers]
+deactivate DB
+
+' ดึงข้อมูล missing_words_quizzes (7.6)
+QuizRepo -> DB: SELECT quiz_id, some_field FROM missing_words_quizzes WHERE course_id = ?
+activate DB
+DB --> QuizRepo: [missingWordsQuizzes]
+deactivate DB
+
+QuizRepo --> QuizServ: [quizBaseList, choiceQuizzes, choiceAnswers, orderingQuizzes, orderingAnswers, missingWordsQuizzes]
+deactivate QuizRepo
+alt ไม่พบข้อมูล quiz
+    QuizServ -> QuizCtrl: returnError("ไม่พบข้อมูล quiz")
+    QuizCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล quiz")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล quiz")
+    FE -> User: แสดงข้อความ "ไม่พบข้อมูล quiz"
+else พบข้อมูล quiz
+    QuizServ --> QuizCtrl: [quizList]
+    QuizCtrl --> Router: successResponse(200, quizList)
+    Router --> FE: successResponse(200, quizList)
+    FE -> User: แสดงรายการ quiz
+end
+deactivate QuizCtrl
+deactivate Router
+
+'==================== Phase 4: ดึงข้อมูลประวัติการทำ Quiz ====================
+User -> FE: เลือก quiz ที่ต้องการ
+FE -> Router: GET /api/quizHistory?quizID={quizID}
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> QuizCtrl: getQuizHistory(quizID, userID)
+deactivate MW
+activate QuizCtrl
+QuizCtrl -> QuizServ: getQuizHistory(quizID, userID)
+activate QuizServ
+QuizServ -> QuizRepo: selectQuizHistory(quizID, userID)
+activate QuizRepo
+
+' ดึงข้อมูล quiz_histories (10.1)
+QuizRepo -> DB: SELECT id, user_id, quiz_id, note FROM quiz_histories WHERE quiz_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [quizHistories]
+deactivate DB
+
+' ดึงข้อมูล choice_histories (10.2a.1)
+QuizRepo -> DB: SELECT history_id, selected_choice FROM choice_histories WHERE quiz_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [choiceHistories]
+deactivate DB
+
+' ดึงข้อมูล ordering_histories (10.2b.1)
+QuizRepo -> DB: SELECT history_id, answer_sequence FROM ordering_histories WHERE quiz_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [orderingHistories]
+deactivate DB
+
+' ดึงข้อมูล missing_words_histories (10.2c.1)
+QuizRepo -> DB: SELECT history_id, missing_word FROM missing_words_histories WHERE quiz_id = ? AND user_id = ?
+activate DB
+DB --> QuizRepo: [missingWordsHistories]
+deactivate DB
+
+QuizRepo --> QuizServ: [quizHistories, choiceHistories, orderingHistories, missingWordsHistories]
+deactivate QuizRepo
+QuizServ --> QuizCtrl: [quizHistory]
+alt ไม่พบประวัติ
+     QuizCtrl -> Router: successResponse(200, "noHistory")
+     Router --> FE: successResponse(200, "noHistory")
+     FE -> User: แสดง quiz โดยไม่มีประวัติ
+else พบประวัติ
+     QuizCtrl -> Router: successResponse(200, quizHistory)
+     Router --> FE: successResponse(200, quizHistory)
+     FE -> User: แสดง quiz พร้อมประวัติ
+end
+deactivate QuizCtrl
+deactivate Router
+
+'==================== Phase 5: ผู้ใช้ทำ Quiz และส่งคำตอบ ====================
+User -> FE: ทำแบบทดสอบและกด "บันทึกคำตอบ"
+FE -> Router: POST /api/quizAnswers
+activate Router
+Router -> MW: validateRequest()
+activate MW
+MW -> QuizCtrl: saveQuizAnswers(answersData, userID, quizID)
+deactivate MW
+activate QuizCtrl
+QuizCtrl -> QuizServ: saveQuizAnswers(answersData, userID, quizID)
+activate QuizServ
+alt ข้อมูลไม่ครบถ้วน
+     QuizServ -> QuizCtrl: returnError("ข้อมูลไม่ครบถ้วน")
+     QuizCtrl -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
+     Router --> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
+     FE -> User: แสดงข้อความ "ข้อมูลไม่ครบถ้วน"
+else ข้อมูลครบถ้วน
+     ' บันทึกคำตอบ (แบ่งตามประเภท quiz)
+     QuizServ -> QuizRepo: insertQuizHistory(answersData, userID, quizID)
+     activate QuizRepo
+     QuizRepo -> DB: INSERT INTO quiz_histories (id, user_id, quiz_id, note) VALUES (?,?,?,?)
+     activate DB
+     DB --> QuizRepo: success
+     deactivate DB
+
+     ' ตัวอย่าง สำหรับ single / multiple choice (17a.1, 17b.1)
+     QuizRepo -> DB: INSERT INTO choice_histories (history_id, selected_choice) VALUES (?,?)
+     activate DB
+     DB --> QuizRepo: success
+     deactivate DB
+
+     ' หากเป็นแบบ ordering (17c.1)
+     QuizRepo -> DB: INSERT INTO ordering_histories (history_id, answer_sequence) VALUES (?,?)
+     activate DB
+     DB --> QuizRepo: success
+     deactivate DB
+
+     ' หากเป็นแบบ missing words (17d.1)
+     QuizRepo -> DB: INSERT INTO missing_words_histories (history_id, missing_word) VALUES (?,?)
+     activate DB
+     DB --> QuizRepo: success
+     deactivate DB
+
+     QuizRepo --> QuizServ: INSERT result
+     deactivate QuizRepo
+
+     alt บันทึกคำตอบสำเร็จ
+          QuizServ --> QuizCtrl: success
+          QuizCtrl --> Router: successResponse(200, "บันทึกคำตอบสำเร็จ")
+          Router --> FE: successResponse(200, "บันทึกคำตอบสำเร็จ")
+          FE -> User: แสดงข้อความ "บันทึกคำตอบสำเร็จ"
+     else บันทึกคำตอบไม่สำเร็จ
+          QuizServ -> QuizCtrl: returnError("ไม่สามารถบันทึกคำตอบได้")
+          QuizCtrl -> Router: errorResponse(500, "บันทึกคำตอบไม่สำเร็จ")
+          Router --> FE: errorResponse(500, "บันทึกคำตอบไม่สำเร็จ")
+          FE -> User: แสดงข้อความ "บันทึกคำตอบไม่สำเร็จ"
+     end
+end
+deactivate QuizServ
+deactivate QuizCtrl
+deactivate Router
+
 @enduml
