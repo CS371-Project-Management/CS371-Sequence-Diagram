@@ -32,7 +32,7 @@ else validInput (4a.1)
     activate Service
     Service -> Repository: insertClass(name, description, privacy, userID)
     activate Repository
-    Repository -> DB: INSERT INTO classes (name, description, privacy, owner_id) VALUES (?,?,?,?)
+    Repository -> DB: INSERT INTO Classes (class_id, user_id, invite_code, title, description, accessibility) VALUES  (<class_id>, <user_id>, <invite_code>, <title>, <description>, <accessibility>);
     activate DB
     DB -->> Repository: affectedRows / classRecord
     deactivate DB
