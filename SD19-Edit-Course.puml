@@ -58,7 +58,7 @@ Controller -> Service: getCourses(classID)
 activate Service
 Service -> Repository: selectCoursesByClass(classID)
 activate Repository
-Repository -> SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;
+Repository -> DB: SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;
 activate DB
 DB --> Repository: courseList
 deactivate DB
