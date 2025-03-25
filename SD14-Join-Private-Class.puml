@@ -1,74 +1,92 @@
 @startuml SequenceDiagram
 title Join Private Class
+
 actor User
 
 participant ": Frontend" as Frontend
 participant ": Router" as Router
 participant ": Middleware" as Middleware
-
-participant ": ClassController" as ClassController
-participant ": ClassService" as ClassService
-participant ": ClassRepository" as ClassRepository
-
 participant ": EnrollmentController" as EnrollmentController
 participant ": EnrollmentService" as EnrollmentService
+participant ": ClassService" as ClassService
 participant ": EnrollmentRepository" as EnrollmentRepository
-
 database Database
 
-User -> Frontend: .handleJoinPrivateClassClick()
-Frontend -> User: Show join private class form
+' 1. ผู้ใช้กดปุ่ม join class และแสดงฟอร์ม
+User -> Frontend: Click "Join Class" button
+Frontend -> User: Display join class form
 
-User -> Frontend: .handleJoinPrivateClassSubmit(invitationCode)
-Frontend -> Router: POST /api/enrollments/{invitationCode}
+' 2. ผู้ใช้กรอก invite code แล้วส่งข้อมูล
+User -> Frontend: Submit invite code
+Frontend -> Router: POST /api/enrollments/{inviteCode}
 activate Router
 
-Router -> Middleware: .Use(Middleware)
+' ตรวจสอบสิทธิ์ผู้ใช้ผ่าน Middleware
+Router -> Middleware: Use Authentication Middleware
 activate Middleware
-Middleware -> Middleware : .Verify()
-
-alt Unauthorized (401 Unauthorized)
+Middleware -> Middleware: Verify User
+alt Unauthorized
   Middleware -->> Router: 401 Unauthorized
   Router -->> Frontend: 401 Unauthorized
   Frontend -->> User: Show error "Please log in"
 else Authorized
-  Middleware -->> Router: Route to Router
+  Middleware -->> Router: Continue routing
   deactivate Middleware
-  Router -> EnrollmentController: .JoinPrivateClass(invitationCode)
+
+  ' เรียก EnrollmentController เพื่อ join class
+  Router -> EnrollmentController: joinPrivateClass(inviteCode)
   activate EnrollmentController
-  EnrollmentController -> EnrollmentService: .JoinPrivateClass(invitationCode)
+  EnrollmentController -> EnrollmentService: joinPrivateClass(inviteCode)
   activate EnrollmentService
-  EnrollmentService -> EnrollmentRepository: .JoinPrivateClass(invitationCode)
-  activate EnrollmentRepository
-  EnrollmentRepository -> Database: INSERT INTO user_classes (user_id, class_id) VALUES (@user_id, @class_id)
+
+  ' ตรวจสอบ invite code (SQL Call 1)
+  EnrollmentService -> ClassService: validateInviteCode(inviteCode)
+  activate ClassService
+  ClassService -> Database: SELECT (class_Id) FROM Classes WHERE invite_code = <invite_code>;
   activate Database
-  Database -->> EnrollmentRepository : user_classes, Error
+  Database -->> ClassService: Class record or not found
   deactivate Database
-  EnrollmentRepository -> Database: INSERT INTO user_courses (user_id, class_id) VALUES (@user_id, @class_id)
-  activate Database
-  Database -->> EnrollmentRepository : user_courses, Error
-  deactivate Database
-  EnrollmentRepository -->> EnrollmentService : Enrollment, Error
-  deactivate EnrollmentRepository
-  EnrollmentService -->> EnrollmentController : Enrollment, Error
-  deactivate EnrollmentService
-  alt Error != Null
-    EnrollmentController -->> Router : 500 Internal Server Error
-    Router -->> Frontend : 500 Internal Server Error
-    Frontend -->> User : Show error "Failed to join class"
-  else Enrollment == Null
-    EnrollmentController -->> Router : 404 Not Found
-    Router -->> Frontend : 404 Not Found
-    Frontend -->> User : Show message "Class not found"
-  else
-    EnrollmentController -->> Router : 200 OK
-    Router -->> Frontend : 200 OK
-    Frontend -->> User : Show success "Joined class"
+  ClassService -->> EnrollmentService: Class record or null
+  deactivate ClassService
+
+  alt Class Not Found
+    EnrollmentService -->> EnrollmentController: null
+  else Class Found
+    ' บันทึกข้อมูลการเข้าร่วม class (SQL Call 2: บันทึก user_classes)
+    EnrollmentService -> EnrollmentRepository: insertUserClass(user_id, class_id)
+    activate EnrollmentRepository
+    EnrollmentRepository -> Database: INSERT INTO User_Class (user_id, class_id) VALUES (<user_id>, <class_id>);
+    activate Database
+    Database -->> EnrollmentRepository: Success or error
+    deactivate Database
+
+    ' บันทึกข้อมูลการเข้าร่วม class (SQL Call 3: บันทึก user_courses)
+    EnrollmentRepository -> Database: INSERT INTO user_courses (user_id, class_id) VALUES (@user_id, @class_id)
+    activate Database
+    Database -->> EnrollmentRepository: Success or error
+    deactivate Database
+    EnrollmentRepository -->> EnrollmentService: Enrollment record or error
+    deactivate EnrollmentRepository
+    EnrollmentService -->> EnrollmentController: Enrollment record or error
   end
+
+  ' ตรวจสอบผลการดำเนินการใน EnrollmentController
+  alt Error during enrollment
+    EnrollmentController -->> Router: 500 Internal Server Error
+    Router -->> Frontend: 500 Internal Server Error
+    Frontend -->> User: Show error "Failed to join class"
+  else Enrollment == null
+    EnrollmentController -->> Router: 404 Not Found
+    Router -->> Frontend: 404 Not Found
+    Frontend -->> User: Show message "Class not found"
+  else Enrollment record returned (Success)
+    EnrollmentController -->> Router: 200 OK
+    Router -->> Frontend: 200 OK
+    Frontend -->> User: Show success "Joined class"
+  end
+
   deactivate EnrollmentController
   deactivate Router
 end
-
-
 
 @enduml

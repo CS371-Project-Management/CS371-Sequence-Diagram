@@ -60,7 +60,7 @@ Controller -> Service: getInviteCode(classID)
 activate Service
 Service -> Repository: selectInviteCode(classID)
 activate Repository
-Repository -> DB: SELECT invite_code FROM Classes WHERE class_id = ?
+Repository -> DB: SELECT invite_code FROM Classes WHERE class_id = <class_id>;
 activate DB
 DB --> Repository: inviteCodeResult
 deactivate DB
@@ -80,7 +80,7 @@ else Invite code not found (5a.1)
     activate Service
     Service -> Repository: checkGeneratedCode(generatedCode)
     activate Repository
-    Repository -> DB: SELECT invite_code FROM Classes WHERE invite_code = :invite_code
+    Repository -> DB: EXISTS (SELECT 1 FROM Classes WHERE invite_code = <invite_code>);
     activate DB
     DB --> Repository: checkResult
     deactivate DB
@@ -94,7 +94,7 @@ else Invite code not found (5a.1)
         deactivate Repository
         Service -> Repository: insertInviteCode(classID, generatedCode)
         activate Repository
-        Repository -> DB: INSERT INTO Classes (class_id, invite_code) VALUES (?, ?)
+        Repository -> DB: UPDATE Classes SET invite_code = <genereted_code> WHERE class_id = <class_id>;
         activate DB
         DB --> Repository: affectedRows
         deactivate DB
