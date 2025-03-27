@@ -69,7 +69,7 @@ else validData (7a.1)
     activate Service
     Service -> Repository: updateClass(classID, updatedData)
     activate Repository
-    Repository -> DB: UPDATE classes SET name=?, description=?, privacy=? WHERE id=?
+    Repository -> DB: UPDATE Classes SET title = <title>, description = <description>, accessibility = <accessibility> WHERE class_id = <class_id>;
     activate DB
     DB --> Repository: affectedRows
     deactivate DB

@@ -1,5 +1,5 @@
 @startuml
-title Edit Profile
+title Edit Profile - Updated with Password Verification Query
 
 actor User
 participant "Frontend" as FE
@@ -21,11 +21,10 @@ MW -> Controller: getUserProfile(userID)
 deactivate MW
 activate Controller
 Controller -> Service: getUserProfile(userID)
-
 activate Service
 Service -> Repository: selectUserByID(userID)
 activate Repository
-Repository -> DB: SELECT id, username, email, ... FROM users WHERE id=?
+Repository -> DB: SELECT user_id, email, password, username, role, firstname, lastname FROM Users WHERE user_id = <user_id>;
 activate DB
 DB -->> Repository: userRecord
 deactivate DB
@@ -49,7 +48,7 @@ MW -> Controller: editUserProfile(updatedData, currentPassword)
 deactivate MW
 activate Controller
 Controller -> Controller: validateUpdatedData()
-alt invalidData (6b.1)
+alt invalidData
     Controller -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     deactivate Router
@@ -58,7 +57,16 @@ else validData
     deactivate Controller
     activate Service
     Service -> Service: verifyCurrentPassword(userID, currentPassword)
-    alt passwordIncorrect (9b.1)
+    '--- ขั้นตอนตรวจสอบรหัสผ่าน (ขั้นตอน 9) ---'
+    Service -> Repository: verifyPassword(userID, hashedPassword)
+    activate Repository
+    Repository -> DB: SELECT user_id, email, password, username, role, firstname, lastname FROM Users WHERE user_id = <user_id> AND password = <hashedPassword>;
+    activate DB
+    DB -->> Repository: userRecord or empty
+    deactivate DB
+    Repository -->> Service: userRecord or failure
+    deactivate Repository
+    alt passwordIncorrect
         Service -> Controller: returnError("รหัสผ่านไม่ถูกต้อง")
         deactivate Service
         Controller -> Router: errorResponse(401, "รหัสผ่านไม่ถูกต้อง")
@@ -69,12 +77,11 @@ else validData
     else passwordCorrect
         Service -> Repository: updateUserProfile(userID, updatedData)
         activate Repository
-        Repository -> DB: UPDATE users SET ... WHERE id=:userID
+        Repository -> DB: UPDATE Users SET firstname = <firstname>, lastname = <lastname> WHERE user_id = <user_id>;
         activate DB
         DB -->> Repository: affectedRows
         deactivate DB
-
-        alt updateSuccess (11a.1)
+        alt updateSuccess
             Repository -> Service: success(updatedUserRecord)
             deactivate Repository
             Service -> Controller: success(updatedUserRecord)
@@ -85,7 +92,7 @@ else validData
             deactivate MW
             deactivate Router
             FE -> User: displayMessage("แก้ไขบัญชีผู้ใช้สำเร็จ")
-        else updateFailed (11b.1)
+        else updateFailed
             Repository -> Service: failure()
             deactivate Repository
             Service -> Controller: returnError("การแก้ไขบัญชีผู้ใช้ล้มเหลว")
