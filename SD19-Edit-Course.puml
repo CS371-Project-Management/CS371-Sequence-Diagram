@@ -103,7 +103,7 @@ else Data valid (10a.1)
     activate Service
     Service -> Repository: updateCourse(courseID, updatedData)
     activate Repository
-    Repository -> DB: UPDATE courses SET title=?, description=?, ... WHERE id=?
+    Repository -> DB: UPDATE Courses SET title = <title>, description = <description>, difficulty_level = <difficulty_level>) WHERE course_id = <course_id>
     activate DB
     DB --> Repository: affectedRows
     deactivate DB

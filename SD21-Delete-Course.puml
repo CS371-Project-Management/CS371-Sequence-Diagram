@@ -1,10 +1,14 @@
 @startuml
-title Delete Course
+title Delete Course - Updated Queries with Alternate Flows
 
 actor "ผู้ใช้" as User
 participant "Frontend" as FE
 participant "Router" as Router
 participant "Middleware" as MW
+
+participant "Course Controller" as CourseCtrl
+participant "Course Service" as CourseServ
+participant "Course Repository" as CourseRepo
 
 '===== Phase 1: ดึงข้อมูล Class ที่ผู้ใช้เป็นผู้ดูแล =====
 participant "Class Controller" as ClassCtrl
@@ -28,29 +32,25 @@ ClassRepo -> DB: SELECT class_id, user_id, invite_code, title, description, acce
 activate DB
 DB --> ClassRepo: classList
 deactivate DB
-' Step 2: ตรวจสอบข้อมูล class
-alt พบข้อมูล class (2a)
-    ClassRepo --> ClassServ: classList
-    deactivate ClassRepo
-    ClassServ --> ClassCtrl: classList
-    deactivate ClassServ
+ClassRepo --> ClassServ: classList
+deactivate ClassRepo
+ClassServ --> ClassCtrl: classList
+deactivate ClassServ
+
+' Alternate Flow สำหรับ Class (ตรวจสอบข้อมูล class)
+alt พบข้อมูล class
     ClassCtrl --> Router: successResponse(200, classList)  <<Step 2a.2>>
-else ไม่พบข้อมูล class (2b)
-    ClassRepo --> ClassServ: emptyList
-    deactivate ClassRepo
-    ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
-    deactivate ClassServ
-    ClassCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล class")  <<Step 2b.2>>
+    Router --> FE: response(classList or success)
+    FE -> User: displayClassesList(classList)
+else ไม่พบข้อมูล class
+    ClassCtrl --> Router: errorResponse(404, "ไม่พบข้อมูล class")  <<Step 2b.2>>
+    Router --> FE: response(errorResponse)
+    FE -> User: displayMessage("ไม่พบข้อมูล class")
 end
 deactivate ClassCtrl
-Router --> FE: response (classList or error)
 deactivate Router
-FE -> User: displayClassesList(classList)
 
 '===== Phase 2: ดึงข้อมูล Course ภายใน class ที่เลือก =====
-participant "Course Controller" as CourseCtrl
-participant "Course Service" as CourseServ
-participant "Course Repository" as CourseRepo
 
 ' Step 3: ผู้ใช้เลือก class ที่ต้องการ
 User -> FE: เลือก class ที่ต้องการ  <<Step 3>>
@@ -67,30 +67,30 @@ CourseCtrl -> CourseServ: getCourses(classID)
 activate CourseServ
 CourseServ -> CourseRepo: selectCoursesByClass(classID)
 activate CourseRepo
-CourseRepo -> DB: SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;  <<Step 4>>
+CourseRepo -> DB: SELECT course_id, class_id, title, description, difficult_level, number FROM Courses WHERE class_id = <class_id>;  <<Step 4>>
 activate DB
 DB --> CourseRepo: courseList
 deactivate DB
-' Step 5: ตรวจสอบข้อมูล course
-alt พบข้อมูล course (5a)
-    CourseRepo --> CourseServ: courseList
-    deactivate CourseRepo
-    CourseServ --> CourseCtrl: courseList
-    deactivate CourseServ
+CourseRepo --> CourseServ: courseList
+deactivate CourseRepo
+CourseServ --> CourseCtrl: courseList
+deactivate CourseServ
+
+' Alternate Flow สำหรับ Course (ตรวจสอบข้อมูล course)
+alt พบข้อมูล course
     CourseCtrl --> Router: successResponse(200, courseList)  <<Step 5a.2>>
-else ไม่พบข้อมูล course (5b)
-    CourseRepo --> CourseServ: emptyList
-    deactivate CourseRepo
-    CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
-    deactivate CourseServ
-    CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")  <<Step 5b.2>>
+    Router --> FE: response(courseList or success)
+    FE -> User: displayCoursesList(courseList)
+else ไม่พบข้อมูล course
+    CourseCtrl --> Router: errorResponse(404, "ไม่พบข้อมูล course")  <<Step 5b.2>>
+    Router --> FE: response(errorResponse)
+    FE -> User: displayMessage("ไม่พบข้อมูล course")
 end
 deactivate CourseCtrl
-Router --> FE: response (courseList or error)
 deactivate Router
-FE -> User: displayCoursesList(courseList)
 
 '===== Phase 3: ลบ Course =====
+
 ' Step 6: ผู้ใช้เลือก course ที่ต้องการ
 User -> FE: เลือก course ที่ต้องการ  <<Step 6>>
 
@@ -114,43 +114,70 @@ CourseServ -> CourseRepo: deleteCourse(courseID)
 activate CourseRepo
 
 group ลบข้อมูลที่เกี่ยวข้อง (Step 9)
-    CourseRepo -> DB: DELETE FROM courses WHERE id = ?  <<Step 9.1>>
+    ' UC 21 : 9.1
+    CourseRepo -> DB: DELETE FROM Courses WHERE course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM user_courses WHERE course_id = ?  <<Step 9.2>>
+
+    ' UC 21 : 9.2
+    CourseRepo -> DB: DELETE FROM User_Courses WHERE course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM quizzes WHERE course_id = ?  <<Step 9.3>>
+
+    ' UC 21 : 9.3
+    CourseRepo -> DB: DELETE FROM Quizzes WHERE course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM choice_quizzes WHERE course_id = ?  <<Step 9.4>>
+
+    ' UC 21 : 9.4
+    CourseRepo -> DB: DELETE cq FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM choice_answers WHERE course_id = ?  <<Step 9.5>>
+
+    ' UC 21 : 9.5
+    CourseRepo -> DB: DELETE ca FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM ordering_quizzes WHERE course_id = ?  <<Step 9.6>>
+
+    ' UC 21 : 9.6
+    CourseRepo -> DB: DELETE oq FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = oq.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM ordering_answers WHERE course_id = ?  <<Step 9.7>>
+
+    ' UC 21 : 9.7
+    CourseRepo -> DB: DELETE oa FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = oa.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM missing_words_quizzes WHERE course_id = ?  <<Step 9.8>>
+
+    ' UC 21 : 9.8
+    CourseRepo -> DB: DELETE mwq FROM Missing_words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = mwq.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM quiz_histories WHERE course_id = ?  <<Step 9.9>>
+
+    ' UC 21 : 9.9
+    CourseRepo -> DB: DELETE qh FROM Quiz_Histories qh JOIN Quizzes q ON q.quiz_id = qh.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM choice_histories WHERE course_id = ?  <<Step 9.10>>
+
+    ' UC 21 : 9.10
+    CourseRepo -> DB: DELETE ch FROM Choice_Histories ch JOIN Quiz_Histories qh ON ch.quiz_history_id = qh.quiz_history_id JOIN Quizzes q ON q.quiz_id = qh.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM ordering_histories WHERE course_id = ?  <<Step 9.11>>
+
+    ' UC 21 : 9.11
+    CourseRepo -> DB: DELETE oh FROM Ordering_Histories oh JOIN Quiz_Histories qh ON qh.quiz_history_id = oh.quiz_history_id JOIN Quizzes q ON q.quiz_id = qh.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
-    CourseRepo -> DB: DELETE FROM missing_words_histories WHERE course_id = ?  <<Step 9.12>>
+
+    ' UC 21 : 9.12
+    CourseRepo -> DB: DELETE mwh FROM Missing_Words_Histories mwh JOIN Quiz_Histories qh ON qh.quiz_history_id = mwh.quiz_history_id JOIN Quizzes q ON q.quiz_id = qh.quiz_id WHERE q.course_id = <course_id>;
     DB --> CourseRepo: affectedRows
 end
+
 deactivate CourseRepo
 CourseServ --> CourseCtrl: deletionResult
 deactivate CourseServ
-CourseCtrl --> Router: successResponse(200, "ลบ course สำเร็จ")  <<Step 10a.2>>
-deactivate CourseCtrl
-Router --> FE: successResponse(200, "ลบ course สำเร็จ")
-deactivate Router
-FE -> User: displayMessage("ลบ course สำเร็จ")
 
-'===== Alternate Flow: หากการลบล้มเหลว =====
-' (หากในขั้นตอน 10 ระบบไม่สามารถลบ course ได้)
-' CourseCtrl -> Router: errorResponse(500, "ไม่สามารถลบ course ได้")  <<Step 10b.2>>
-' FE -> User: displayMessage("ไม่สามารถลบ course ได้")
+' Alternate Flow สำหรับการลบ Course
+alt ลบ course สำเร็จ
+    CourseCtrl --> Router: successResponse(200, "ลบ course สำเร็จ")  <<Step 10a.2>>
+    Router --> FE: successResponse(200, "ลบ course สำเร็จ")
+    FE -> User: displayMessage("ลบ course สำเร็จ")
+else ลบ course ไม่สำเร็จ
+    CourseCtrl --> Router: errorResponse(500, "ไม่สามารถลบ course ได้")  <<Step 10b.2>>
+    Router --> FE: errorResponse(500, "ไม่สามารถลบ course ได้")
+    FE -> User: displayMessage("ไม่สามารถลบ course ได้")
+end
+deactivate CourseCtrl
+deactivate Router
 
 @enduml

@@ -30,7 +30,7 @@ ClassCtrl -> ClassServ: getJoinedClasses(userID)
 activate ClassServ
 ClassServ -> ClassRepo: selectJoinedClasses(userID)
 activate ClassRepo
-ClassRepo -> DB: SELECT id, name, description FROM classes WHERE user_id = ?
+ClassRepo -> DB: SELECT (c.class_id, c.title, c.description) FROM Classes c INNER JOIN User_Classes uc ON c.class_id = uc.class_id WHERE uc.user_id = <user_id>
 activate DB
 DB --> ClassRepo: [classList]
 deactivate DB
@@ -65,7 +65,7 @@ CourseCtrl -> CourseServ: getCourses(classID)
 activate CourseServ
 CourseServ -> CourseRepo: selectCoursesByClass(classID)
 activate CourseRepo
-CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+CourseRepo -> DB: SELECT c.course_id,c.title,c.description,c.difficulty_level,(SELECT COUNT(DISTINCT q.quiz_id) FROM Quizzes q WHERE q.course_id = c.course_id ) AS total_quizzes,( SELECT COUNT(DISTINCT qh.quiz_id) FROM Quiz_Histories qh JOIN Quizzes q ON qh.quiz_id = q.quiz_id WHERE q.course_id = c.course_id AND qh.user_id = <user_id> ) AS completed_quizzes FROM Courses c WHERE c.class_id = <class_id>;
 activate DB
 DB --> CourseRepo: [courseList]
 deactivate DB
@@ -102,28 +102,88 @@ activate CourseCtrl
 CourseCtrl -> CourseServ: getQuizReport(courseID, userID)
 activate CourseServ
 CourseServ -> CourseRepo: selectQuizReportData(courseID, userID)
-CourseRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+activate CourseRepo
+'-------------------------------------------
+' UC 22 : 8.1 - ดึงข้อมูล quizzes ภายใน course
+' Query: SELECT quiz_id, course_id, number, quiz_type, lesson, point FROM Quizzes WHERE course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT quiz_id, course_id, number, quiz_type, lesson, point FROM Quizzes WHERE course_id = <course_id>;
 activate DB
 DB --> CourseRepo: [quizList]
 deactivate DB
-CourseRepo -> DB: SELECT id FROM quiz_histories WHERE course_id = ? AND user_id = ?
+'-------------------------------------------
+' UC 22 : 8.2 - ดึงข้อมูล choice_quizzes (รายละเอียดคำถาม) สำหรับ quizzes
+' Query: SELECT cq.quiz_id, cq.question, cq.type FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT cq.quiz_id, cq.question, cq.type FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+activate DB
+DB --> CourseRepo: [choiceQuizzes]
+deactivate DB
+'-------------------------------------------
+' UC 22 : 8.3 - ดึงข้อมูล choice_answers สำหรับ quizzes
+' Query: SELECT ca.choice_answer_id, ca.quiz_id, ca.answer, ca.result FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT ca.choice_answer_id, ca.quiz_id, ca.answer, ca.result FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
+activate DB
+DB --> CourseRepo: [choiceAnswers]
+deactivate DB
+'-------------------------------------------
+' UC 22 : 8.4 - ดึงข้อมูล ordering_quizzes สำหรับ quizzes
+' Query: SELECT oq.quiz_id, oq.question FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT oq.quiz_id, oq.question FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+activate DB
+DB --> CourseRepo: [orderingQuizzes]
+deactivate DB
+'-------------------------------------------
+' UC 22 : 8.5 - ดึงข้อมูล ordering_answers สำหรับ quizzes
+' Query: SELECT oa.ordering_answer_id, ca.quiz_id, ca.answer, ca.order FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT oa.ordering_answer_id, ca.quiz_id, ca.answer, ca.order FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
+activate DB
+DB --> CourseRepo: [orderingAnswers]
+deactivate DB
+'-------------------------------------------
+' UC 22 : 8.6 - ดึงข้อมูล missing_words_quizzes สำหรับ quizzes
+' Query: SELECT mwq.quiz_id, mwq.question, mqw.answer FROM Missing_Words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT mwq.quiz_id, mwq.question, mqw.answer FROM Missing_Words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+activate DB
+DB --> CourseRepo: [missingWordsQuizzes]
+deactivate DB
+'-------------------------------------------
+' UC 22 : 8.7 - ดึงข้อมูล quiz_histories สำหรับ course และ user
+' Query: SELECT qh.quiz_history_id, qh.user_id, qh.quiz_id, qh.quiz_type, qh.note, qh.status FROM Quiz_Histories qh JOIN Quizzes q ON qh.quiz_id = q.quiz_id JOIN Courses c ON q.course_id = c.course_id WHERE c.course_id = <course_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT qh.quiz_history_id, qh.user_id, qh.quiz_id, qh.quiz_type, qh.note, qh.status FROM Quiz_Histories qh JOIN Quizzes q ON qh.quiz_id = q.quiz_id JOIN Courses c ON q.course_id = c.course_id WHERE c.course_id = <course_id>;
 activate DB
 DB --> CourseRepo: [quizHistories]
 deactivate DB
-CourseRepo -> DB: SELECT id FROM choice_histories WHERE course_id = ? AND user_id = ?
+'-------------------------------------------
+' UC 22 : 8.8 - ดึงข้อมูล choice_histories สำหรับแต่ละ quiz (ใช้ quiz_id)
+' Query: SELECT ch.choice_history_id, ch.quiz_history_id, ch.answer, ch.result FROM Choice_Histories ch JOIN Quiz_Histories qh ON qh.quiz_history_id = ch.quiz_history_id WHERE ch.quiz_id = <quiz_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT ch.choice_history_id, ch.quiz_history_id, ch.answer, ch.result FROM Choice_Histories ch JOIN Quiz_Histories qh ON qh.quiz_history_id = ch.quiz_history_id WHERE ch.quiz_id = <quiz_id>;
 activate DB
 DB --> CourseRepo: [choiceHistories]
 deactivate DB
-CourseRepo -> DB: SELECT id FROM ordering_histories WHERE course_id = ? AND user_id = ?
+'-------------------------------------------
+' UC 22 : 8.9 - ดึงข้อมูล ordering_histories สำหรับแต่ละ quiz (ใช้ quiz_id)
+' Query: SELECT oh.ordering_history_id, oh.quiz_history_id, oh.answer, oh.result, oh.order FROM Ordering_Histories oh JOIN Quiz_Histories qh ON qh.quiz_history_id = oh.quiz_history_id WHERE ch.quiz_id = <quiz_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT oh.ordering_history_id, oh.quiz_history_id, oh.answer, oh.result, oh.order FROM Ordering_Histories oh JOIN Quiz_Histories qh ON qh.quiz_history_id = oh.quiz_history_id WHERE ch.quiz_id = <quiz_id>;
 activate DB
 DB --> CourseRepo: [orderingHistories]
 deactivate DB
-CourseRepo -> DB: SELECT id FROM missing_words_histories WHERE course_id = ? AND user_id = ?
+'-------------------------------------------
+' UC 22 : 8.10 - ดึงข้อมูล missing_words_histories สำหรับแต่ละ quiz (ใช้ quiz_id)
+' Query: SELECT mwh.missing_words_history_id, mwh.quiz_history_id, mwh.answer, mwh.result FROM Missing_Words_Histories mwh JOIN Quiz_Histories qh ON qh.quiz_history_id = mwh.quiz_history_id WHERE ch.quiz_id = <quiz_id>;
+'-------------------------------------------
+CourseRepo -> DB: SELECT mwh.missing_words_history_id, mwh.quiz_history_id, mwh.answer, mwh.result FROM Missing_Words_Histories mwh JOIN Quiz_Histories qh ON qh.quiz_history_id = mwh.quiz_history_id WHERE ch.quiz_id = <quiz_id>;
 activate DB
 DB --> CourseRepo: [missingWordsHistories]
 deactivate DB
-CourseRepo --> CourseServ: [quizReportData]
-deactivate CourseRepo
+CourseRepo --> CourseServ: [quizReportData, result23.1, result23.4]
 deactivate CourseRepo
 
 CourseServ -> CourseServ: check completeness of quiz histories
@@ -142,12 +202,9 @@ else
     else คำนวณผลไม่สำเร็จ
          CourseServ --> CourseCtrl: returnError("เกิดข้อผิดพลาดในการคำนวณ")
          CourseCtrl --> Router: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
-         deactivate CourseCtrl
          Router --> FE: errorResponse(500, "เกิดข้อผิดพลาดในการคำนวณ")
-         deactivate Router
          FE -> User: แสดงข้อความ "เกิดข้อผิดพลาดในการคำนวณ"
     end
-end
 end
 deactivate CourseServ
 deactivate CourseCtrl
