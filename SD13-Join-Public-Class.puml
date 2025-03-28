@@ -1,5 +1,6 @@
 @startuml SequenceDiagram
 title Join Public Class
+
 actor User
 
 participant ": Frontend" as Frontend
@@ -13,100 +14,139 @@ participant ": ClassRepository" as ClassRepository
 participant ": EnrollmentController" as EnrollmentController
 participant ": EnrollmentService" as EnrollmentService
 participant ": EnrollmentRepository" as EnrollmentRepository
+participant ": CourseRepository" as CourseRepository
 
 database Database
 
-Frontend -> Router: GET /api/classes/not-enrolled/{user-id}
-activate Router
+activate Frontend #LightBlue
+
+Frontend -> Router: GET /api/classes/public?user-id={userId}
+activate Router #LightGreen
 
 Router -> Middleware: .Use(Middleware)
-activate Middleware
+activate Middleware #LightPink
 Middleware -> Middleware : .Verify()
 
 alt Unauthorized (401 Unauthorized)
-  Middleware -->> Router: 401 Unauthorized
-  Router -->> Frontend: 401 Unauthorized
-  Frontend -->> User: Show error "Please log in"
-else Authorized
-  Middleware -->> Router: Route to Router
+  Middleware --> Router: 401 Unauthorized
   deactivate Middleware
-  Router -> ClassController: .GetAllPublicClasses(user-id)
-  activate ClassController
-  ClassController -> ClassService: .GetAllPublicClasses(user-id)
-  activate ClassService
-  ClassService -> ClassRepository: .GetAllPublicClasses(user-id)
-  activate ClassRepository
-  ClassRepository -> Database: SELECT (class_id, title, description) FROM Classes c LEFT JOIN User_Classes uc ON c.class_id = uc.class_id AND uc.user_id = <user_id> WHERE uc.class_id IS NULL;
-  activate Database
-  Database -->> ClassRepository : Classes, Error
-  deactivate Database
-  ClassRepository -->> ClassService : Classes, Error
-  deactivate ClassRepository
-  ClassService -->> ClassController : Classes, Error
-  deactivate ClassService
-  alt Error != Null
-    ClassController -->> Router : 500 Internal Server Error
-    Router -->> Frontend : 500 Internal Server Error
-    Frontend -->> User : Show error "Failed to fetch classes"
-  else Classes == Null
-    ClassController -->> Router : 404 Not Found
-    Router -->> Frontend : 404 Not Found
-    Frontend -->> User : Show message "No public class available"
-  else
-    ClassController -->> Router : 200 OK
-    Router -->> Frontend : 200 OK
-    Frontend -->> User : Show public classes
-  end
-  deactivate ClassController
+  Router --> Frontend: 401 Unauthorized
   deactivate Router
-      deactivate ClassController
-      deactivate Router
-      opt User join class
-        User -> Frontend : .handleJoinClassClick(class_id)
-        Frontend -> Router : POST /api/enrollments
-        activate Router
+  Frontend --> User: Show error "Please log in"
+else Authorized
+  Middleware --> Router: Route to Router
+  deactivate Middleware
+  Router -> ClassController: .GetPublicClasses(userId)
+  activate ClassController #LightBlue
 
-        Router -> Middleware : .Use(Middleware)
-        activate Middleware
-        Middleware -> Middleware : .Verify()
+  ClassController -> ClassService: .GetPublicClasses(userId)
+  activate ClassService #LightGreen
+  ClassService -> ClassRepository: .GetPublicClasses(userId)
+  activate ClassRepository #LightPink
+  ClassRepository -> Database: SELECT c.class_id, c.title, c.description \nFROM Classes c \nLEFT JOIN User_Classes uc ON c.class_id = uc.class_id AND uc.user_id = @userId \nWHERE uc.class_id IS NULL AND c.accessibility = 'public'
+  activate Database #LightGray
+  Database --> ClassRepository: Classes
+  deactivate Database
+  ClassRepository --> ClassService: Classes
+  deactivate ClassRepository
+  ClassService --> ClassController: Classes
+  deactivate ClassService
 
-        alt Unauthorized (401 Unauthorized)
-          Middleware -->> Router: 401 Unauthorized
-          Router -->> Frontend: 401 Unauthorized
-          Frontend -->> User: Show error "Please log in"
-        else Authorized
-          Middleware -->> Router: Route to Router
-          deactivate Middleware
-          Router -> EnrollmentController: .CreateEnrollment(user-id, class-id)
-          activate EnrollmentController
-          EnrollmentController -> EnrollmentService: .CreateEnrollment(user-id, class-id)
-          activate EnrollmentService
-          EnrollmentService -> EnrollmentRepository: .CreateEnrollment(user-id, class-id)
-          activate EnrollmentRepository
-          EnrollmentRepository -> Database: INSERT INTO User_Class (user_id, class_id) VALUES (<user_id>, <class_id>);
-          activate Database
-          Database -->> EnrollmentRepository : user_classes, Error
-          deactivate Database
-          EnrollmentRepository -> Database: INSERT INTO User_Courses (user_id, class_id) VALUES (<user_id>, <class_id>);
-          activate Database
-          Database -->> EnrollmentRepository : user_courses, Error
-          deactivate Database
-          EnrollmentRepository -->> EnrollmentService : Enrollment, Error
-          deactivate EnrollmentRepository
-          EnrollmentService -->> EnrollmentController : Enrollment, Error
-          deactivate EnrollmentService
-          alt Error != Null
-            EnrollmentController -->> Router : 500 Internal Server Error
-            Router -->> Frontend : 500 Internal Server Error
-            Frontend -->> User : Show error "Failed to join class"
-          else
-            EnrollmentController -->> Router : 201 Created
-            Router -->> Frontend : 201 Created
-            Frontend -->> User : Show message "Joined class successfully"
-          end
-        end
-      end
+  alt Classes empty
+    ClassController --> Router: 204 No Content
+    deactivate ClassController
+    Router --> Frontend: 204 No Content
+    deactivate Router
+    Frontend --> User: Show message "No public classes available"
+  else Error
+    ClassController --> Router: 500 Internal Server Error
+    deactivate ClassController
+    Router --> Frontend: 500 Internal Server Error
+    deactivate Router
+    Frontend --> User: Show error "Failed to load classes"
+  else
+    ClassController --> Router: 200 OK
+    deactivate ClassController
+    Router --> Frontend: 200 OK
+    deactivate Router
+    Frontend --> User: Show public classes list
+  end
+end
+
+opt User selects class to join
+  User -> Frontend: .handleJoinClass(classId)
+  Frontend -> Router: POST /api/enrollments {userId, classId}
+  activate Router #LightGreen
+
+  Router -> Middleware: .Use(Middleware)
+  activate Middleware #LightPink
+  Middleware -> Middleware : .Verify()
+
+  alt Unauthorized
+    Middleware --> Router: 401 Unauthorized
+    deactivate Middleware
+    Router --> Frontend: 401 Unauthorized
+    deactivate Router
+    Frontend --> User: Show error "Please log in"
+  else Authorized
+    Middleware --> Router: Route to Router
+    deactivate Middleware
+    Router -> EnrollmentController: .EnrollUser(userId, classId)
+    activate EnrollmentController #LightBlue
+
+    EnrollmentController -> EnrollmentService: .EnrollUser(userId, classId)
+    activate EnrollmentService #LightGreen
+
+    ' Step 1: Create enrollment in User_Classes
+    EnrollmentService -> EnrollmentRepository: .CreateEnrollment(userId, classId)
+    activate EnrollmentRepository #LightPink
+    EnrollmentRepository -> Database: INSERT INTO User_Classes (user_id, class_id) \nVALUES (@userId, @classId)
+    activate Database #LightGray
+    Database --> EnrollmentRepository: enrollmentId
+    deactivate Database
+    EnrollmentRepository --> EnrollmentService: enrollmentId
+    deactivate EnrollmentRepository
+
+    ' Step 2: Get courses for this class
+    EnrollmentService -> CourseRepository: .GetCoursesByClass(classId)
+    activate CourseRepository #LightPink
+    CourseRepository -> Database: SELECT course_id FROM Courses WHERE class_id = @classId
+    activate Database #LightGray
+    Database --> CourseRepository: courses
+    deactivate Database
+    CourseRepository --> EnrollmentService: courses
+    deactivate CourseRepository
+
+    ' Step 3: Enroll in all courses
+    loop for each course
+      EnrollmentService -> EnrollmentRepository: .EnrollInCourse(userId, course.course_id)
+      activate EnrollmentRepository #LightPink
+      EnrollmentRepository -> Database: INSERT INTO User_Courses (user_id, course_id, status) \nVALUES (@userId, @courseId, 'active')
+      activate Database #LightGray
+      Database --> EnrollmentRepository: success
+      deactivate Database
+      EnrollmentRepository --> EnrollmentService: success
+      deactivate EnrollmentRepository
     end
 
+    EnrollmentService --> EnrollmentController: EnrollmentResult
+    deactivate EnrollmentService
 
+    alt Enrollment failed
+      EnrollmentController --> Router: 500 Internal Server Error
+      deactivate EnrollmentController
+      Router --> Frontend: 500 Internal Server Error
+      deactivate Router
+      Frontend --> User: Show error "Failed to join class"
+    else
+      EnrollmentController --> Router: 201 Created
+      deactivate EnrollmentController
+      Router --> Frontend: 201 Created
+      deactivate Router
+      Frontend --> User: Show success "Successfully joined class"
+    end
+  end
+end
+
+deactivate Frontend
 @enduml

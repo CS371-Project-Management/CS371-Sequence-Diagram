@@ -1,123 +1,146 @@
-@startuml
+@startuml SequenceDiagram
 title Create Course
 
 actor User
 participant ": Frontend" as Frontend
 participant ": Router" as Router
 participant ": Middleware" as Middleware
-
 participant ": ClassController" as ClassController
 participant ": ClassService" as ClassService
 participant ": ClassRepository" as ClassRepository
-
 participant ": CourseController" as CourseController
 participant ": CourseService" as CourseService
 participant ": CourseRepository" as CourseRepository
-
 database Database
 
-activate Frontend
+activate Frontend #LightBlue
 
-Frontend -> Router: GET /api/classes (Fetch user-managed classes)
-activate Router
+' 1. User requests managed classes
+Frontend -> Router: GET /api/classes/managed
+activate Router #LightGreen
 
 Router -> Middleware: .Use(Middleware)
-activate Middleware
-Middleware -> Middleware : .Verify()
-alt Unauthorized (401 Unauthorized)
-  Middleware -->> Router: 401 Unauthorized
-  Router -->> Frontend: 401 Unauthorized
-  Frontend -->> User: Show error "Please log in"
-else Authorized
-  Middleware -->> Router: Route to Router
+activate Middleware #LightPink
+Middleware -> Middleware: .Verify()
+
+alt Unauthorized
+  Middleware --> Router: 401 Unauthorized
   deactivate Middleware
-  Router -> ClassController: .GetAllClasses()
-  activate ClassController
-  ClassController -> ClassService: .GetAllClasses()
-  activate ClassService
-  ClassService -> ClassRepository: .GetAllClasses()
-  activate ClassRepository
-  ClassRepository -> Database: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
-  activate Database
-  Database -->> ClassRepository : Classes, Error
-  deactivate Database
-  ClassRepository -->> ClassService : Classes, Error
-  deactivate ClassRepository
-  ClassService -->> ClassController : Classes, Error
-  deactivate ClassService
-  alt Error != Null
-    ClassController -->> Router : 500 Internal Server Error
-    Router -->> Frontend : 500 Internal Server Error
-    Frontend -->> User : Show error "Failed to fetch classes"
-  else Classes == Null
-    ClassController -->> Router : 404 Not Found
-    Router -->> Frontend : 404 Not Found
-    Frontend -->> User : Show message "No classes found"
-  else
-    ClassController -->> Router : 200 OK
-    Router -->> Frontend : 200 OK
-    Frontend -->> User : Show classes list
-  end
-  deactivate ClassController
+  Router --> Frontend: 401 Unauthorized
   deactivate Router
+  Frontend --> User: Show error "Please log in"
+else Authorized
+  Middleware --> Router: Continue
+  deactivate Middleware
 
-  opt User selects a class to create course
-    User -> Frontend: .handleCreateCourseClick(classId)
-    Frontend -> User: Show create course form
+  Router -> ClassController: .GetManagedClasses()
+  activate ClassController #LightBlue
+  ClassController -> ClassService: .GetManagedClasses()
+  activate ClassService #LightGreen
+  ClassService -> ClassRepository: .GetClassesByOwner(userId)
+  activate ClassRepository #LightPink
+  ClassRepository -> Database: SELECT class_id, title FROM Classes WHERE user_id = @userId
+  activate Database #LightGray
+  Database --> ClassRepository: Classes
+  deactivate Database
+  ClassRepository --> ClassService: Classes
+  deactivate ClassRepository
+  ClassService --> ClassController: Classes
+  deactivate ClassService
 
-    User -> Frontend: .handleCreateCourseSubmit(name,description)
-    Frontend -> Frontend: .Validate(name,description)
-
-    alt Invalid
-      Frontend -> User: Show error "Invalid course name or description"
-    else Valid
-      Frontend -> Router: POST /api/courses/{classId}
-      activate Router
-
-      Router -> Middleware: .Use(Middleware)
-      activate Middleware
-      Middleware -> Middleware : .Verify()
-
-      alt Unauthorized (401 Unauthorized)
-        Middleware -->> Router: 401 Unauthorized
-        Router -->> Frontend: 401 Unauthorized
-        Frontend -->> User: Show error "Please log in"
-      else Authorized
-        Middleware -->> Router: Route to Router
-        deactivate Middleware
-        Router -> CourseController: .CreateCourse(classId, name, description)
-        activate CourseController
-        CourseController -> CourseService: .CreateCourse(classId, name, description)
-        activate CourseService
-        CourseService -> CourseRepository: .CreateCourse(classId, name, description)
-        activate CourseRepository
-        CourseRepository -> Database: INSERT INTO courses (class_id, name, description) VALUES (@class_id, @name, @description)
-        activate Database
-        Database -->> CourseRepository : Course, Error
-        deactivate Database
-        CourseRepository -->> CourseService : Course, Error
-        deactivate CourseRepository
-        CourseService -->> CourseController : Course, Error
-        deactivate CourseService
-        alt Error != Null
-          CourseController -->> Router : 500 Internal Server Error
-          Router -->> Frontend : 500 Internal Server Error
-          Frontend -->> User : Show error "Failed to create course"
-        else Course == Null
-          CourseController -->> Router : 404 Not Found
-          Router -->> Frontend : 404 Not Found
-          Frontend -->> User : Show message "Failed to create course"
-        else
-          CourseController -->> Router : 201 Created
-          Router -->> Frontend : 201 Created
-          Frontend -->> User : Show message "Course created"
-        end
-
-
-      end
-    end
-
-
+  alt Error occurred
+    ClassController --> Router: 500 Internal Server Error
+    deactivate ClassController
+    Router --> Frontend: 500 Internal Server Error
+    deactivate Router
+    Frontend --> User: Show error "Failed to fetch classes"
+  else No classes found
+    ClassController --> Router: 204 No Content
+    deactivate ClassController
+    Router --> Frontend: 204 No Content
+    deactivate Router
+    Frontend --> User: Show message "No classes found"
+  else
+    ClassController --> Router: 200 OK
+    deactivate ClassController
+    Router --> Frontend: 200 OK
+    deactivate Router
+    Frontend --> User: Show managed classes list
   end
 end
+
+opt User creates new course
+  User -> Frontend: .handleCreateCourseClick(classId)
+  Frontend --> User: Show course creation form
+
+  User -> Frontend: .submitCourseForm(classId, title, description, difficultyLevel)
+  Frontend -> Frontend: ValidateCourseData(title, description, difficultyLevel)
+
+  alt Invalid data
+    Frontend --> User: Show error "Invalid course data"
+  else Valid data
+    Frontend -> Router: POST /api/classes/{classId}/courses
+    activate Router #LightGreen
+
+    Router -> Middleware: .Use(Middleware)
+    activate Middleware #LightPink
+    Middleware -> Middleware: .Verify()
+
+    alt Unauthorized
+      Middleware --> Router: 401 Unauthorized
+      deactivate Middleware
+      Router --> Frontend: 401 Unauthorized
+      deactivate Router
+      Frontend --> User: Show error "Please log in"
+    else Authorized
+      Middleware --> Router: Continue
+      deactivate Middleware
+
+      Router -> CourseController: .CreateCourse(classId, title, description, difficultyLevel)
+      activate CourseController #LightBlue
+      CourseController -> CourseService: .CreateCourse(classId, title, description, difficultyLevel)
+      activate CourseService #LightGreen
+
+      ' Verify class ownership
+      CourseService -> ClassRepository: .VerifyOwnership(userId, classId)
+      activate ClassRepository #LightPink
+      ClassRepository -> Database: SELECT 1 FROM Classes WHERE class_id = @classId AND user_id = @userId
+      activate Database #LightGray
+      Database --> ClassRepository: isOwner
+      deactivate Database
+      ClassRepository --> CourseService: isOwner
+      deactivate ClassRepository
+
+      alt Not owner
+        CourseService --> CourseController: Error "Not class owner"
+        deactivate CourseService
+        CourseController --> Router: 403 Forbidden
+        deactivate CourseController
+        Router --> Frontend: 403 Forbidden
+        deactivate Router
+        Frontend --> User: Show error "Not authorized"
+      else
+        ' Create new course
+        CourseService -> CourseRepository: .CreateCourse(classId, title, description, difficultyLevel)
+        activate CourseRepository #LightPink
+        CourseRepository -> Database: INSERT INTO Courses (class_id, title, description, difficulty_level, number) \nVALUES (@classId, @title, @description, @difficultyLevel, \n(SELECT COALESCE(MAX(number),0)+1 FROM Courses WHERE class_id = @classId))
+        activate Database #LightGray
+        Database --> CourseRepository: newCourseId
+        deactivate Database
+        CourseRepository --> CourseService: newCourse
+        deactivate CourseRepository
+
+        CourseService --> CourseController: newCourse
+        deactivate CourseService
+        CourseController --> Router: 201 Created
+        deactivate CourseController
+        Router --> Frontend: 201 Created
+        deactivate Router
+        Frontend --> User: Show success "Course created successfully"
+      end
+    end
+  end
+end
+
+deactivate Frontend
 @enduml

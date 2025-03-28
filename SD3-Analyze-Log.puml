@@ -16,169 +16,235 @@ participant ": CourseRepository" as CourseRepository
 
 participant ": LogController" as LogController
 participant ": LogService" as LogService
-participant ": LogRepository" as LogRepository
+participant ": QuizRepository" as QuizRepository
+participant ": ChoiceQuizRepository" as ChoiceQuizRepository
+participant ": OrderingQuizRepository" as OrderingQuizRepository
+participant ": MissingWordQuizRepository" as MissingWordQuizRepository
+participant ": QuizHistoryRepository" as QuizHistoryRepository
+participant ": ChoiceHistoryRepository" as ChoiceHistoryRepository
+participant ": OrderingHistoryRepository" as OrderingHistoryRepository
+participant ": MissingWordHistoryRepository" as MissingWordHistoryRepository
 
 database Database
 
-activate Frontend
+activate Frontend #LightBlue
 
 Frontend -> Router: GET /api/classes
-activate Router
+activate Router #LightGreen
 
 Router -> Middleware: .Use(Middleware)
-activate Middleware
+activate Middleware #LightPink
 Middleware -> Middleware : .Verify()
+
 alt Unauthorized (401 Unauthorized)
-  Middleware -->> Router: 401 Unauthorized
-  Router -->> Frontend: 401 Unauthorized
-  Frontend -->> User: Show error "Please log in"
+  Middleware --> Router: 401 Unauthorized
+  deactivate Middleware
+  Router --> Frontend: 401 Unauthorized
+  deactivate Router
+  Frontend --> User: Show error "Please log in"
 else Authorized
-  Middleware -->> Router: Route to Router
+  Middleware --> Router: Route to Router
   deactivate Middleware
   Router -> ClassController: .GetAllClasses()
-  activate ClassController
+  activate ClassController #LightBlue
   ClassController -> ClassService: .GetAllClasses()
-  activate ClassService
+  activate ClassService #LightGreen
   ClassService -> ClassRepository: .GetAllClasses()
-  activate ClassRepository
-  ClassRepository -> Database: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
-  activate Database
-  Database -->> ClassRepository : Classes, Error
+  activate ClassRepository #LightPink
+  ClassRepository -> Database: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>
+  activate Database #LightGray
+  Database --> ClassRepository : Classes
   deactivate Database
-  ClassRepository -->> ClassService : Classes, Error
+  ClassRepository --> ClassService : Classes
   deactivate ClassRepository
-  ClassService -->> ClassController : Classes, Error
+  ClassService --> ClassController : Classes
   deactivate ClassService
-  alt Error != Null
-    ClassController -->> Router : 500 Internal Server Error
-    Router -->> Frontend : 500 Internal Server Error
-    Frontend -->> User : Show error "Failed to fetch classes"
-  else Classes == Null
-    ClassController -->> Router : 404 Not Found
-    Router -->> Frontend : 404 Not Found
-    Frontend -->> User : Show message "Class not found"
-  else
-    ClassController -->> Router : 200 OK
-    Router -->> Frontend : 200 OK
-    Frontend -->> User : Show classes list
-  end
-  deactivate ClassController
-  deactivate Router
 
-  opt User selects a class
-    User -> Frontend: .handleClassClick(classId)
-    Frontend -> Router: GET /api/courses/{classId}
-    activate Router
+  ClassController --> Router : 200 OK
+  deactivate ClassController
+  Router --> Frontend : 200 OK
+  deactivate Router
+  Frontend --> User : Show classes list
+end
+
+opt User selects a class
+  User -> Frontend: .handleClassClick(classId)
+  Frontend -> Router: GET /api/courses/{classId}
+  activate Router #LightGreen
+
+  Router -> Middleware: .Use(Middleware)
+  activate Middleware #LightPink
+  Middleware -> Middleware : .Verify()
+
+  alt Unauthorized
+    Middleware --> Router: 401 Unauthorized
+    deactivate Middleware
+    Router --> Frontend: 401 Unauthorized
+    deactivate Router
+    Frontend --> User: Show error
+  else Authorized
+    Middleware --> Router: Route to Router
+    deactivate Middleware
+    Router -> CourseController: .GetAllCourses(classId)
+    activate CourseController #LightBlue
+    CourseController -> CourseService: .GetAllCourses(classId)
+    activate CourseService #LightGreen
+    CourseService -> CourseRepository: .GetAllCourses(classId)
+    activate CourseRepository #LightPink
+    CourseRepository -> Database: SELECT course_id, class_id, title, description, difficult_level, number FROM Courses WHERE class_id = <class_id>
+    activate Database #LightGray
+    Database --> CourseRepository : Courses
+    deactivate Database
+    CourseRepository --> CourseService : Courses
+    deactivate CourseRepository
+    CourseService --> CourseController : Courses
+    deactivate CourseService
+
+    CourseController --> Router : 200 OK
+    deactivate CourseController
+    Router --> Frontend : 200 OK
+    deactivate Router
+    Frontend --> User : Show courses list
+  end
+
+  opt User selects a course
+    User -> Frontend: .handleCourseClick(courseId)
+    Frontend --> User: Show Log-Type menu
+
+    User -> Frontend: .handleLogClick(courseId, logType)
+    Frontend -> Router: GET /api/logs/{courseId}?type={logType}
+    activate Router #LightGreen
 
     Router -> Middleware: .Use(Middleware)
-    activate Middleware
+    activate Middleware #LightPink
     Middleware -> Middleware : .Verify()
-    alt Unauthorized (401 Unauthorized)
-      Middleware -->> Router: 401 Unauthorized
-      Router -->> Frontend: 401 Unauthorized
-      Frontend -->> User: Show error "Please log in"
-    else Authorized
-      Middleware -->> Router: Route to Router
+
+    alt Unauthorized
+      Middleware --> Router: 401 Unauthorized
       deactivate Middleware
-      Router -> CourseController: .GetAllCourses(classId)
-      activate CourseController
-      CourseController -> CourseService: .GetAllCourses(classId)
-      activate CourseService
-      CourseService -> CourseRepository: .GetAllCourses(classId)
-      activate CourseRepository
-      CourseRepository -> Database: SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;
-      activate Database
-      Database -->> CourseRepository : Courses, Error
-      deactivate Database
-      CourseRepository -->> CourseService : Courses, Error
-      deactivate CourseRepository
-      CourseService -->> CourseController : Courses, Error
-      deactivate CourseService
-      alt Error != Null
-        CourseController -->> Router : 500 Internal Server Error
-        Router -->> Frontend : 500 Internal Server Error
-        Frontend -->> User : Show error "Failed to fetch courses"
-      else Courses == Null
-        CourseController -->> Router : 404 Not Found
-        Router -->> Frontend : 404 Not Found
-        Frontend -->> User : Show message "Course not found"
-      else
-        CourseController -->> Router : 200 OK
-        Router -->> Frontend : 200 OK
-        Frontend -->> User : Show courses list
-      end
-      deactivate CourseController
+      Router --> Frontend: 401 Unauthorized
       deactivate Router
+      Frontend --> User: Show error
+    else Authorized
+      Middleware --> Router: Route to Router
+      deactivate Middleware
+      Router -> LogController: .GetAllLogs(courseId, logType)
+      activate LogController #LightBlue
+      LogController -> LogService: .GetAllLogs(courseId, logType)
+      activate LogService #LightGreen
 
-      opt User selects a course
-        User -> Frontend: .handleCourseClick(courseId)
-        Frontend -->> User: Show Log-Type menu
+      ' Get basic quiz data
+      LogService -> QuizRepository: .GetQuizzesByCourse(courseId)
+      activate QuizRepository #LightPink
+      QuizRepository -> Database: SELECT quiz_id, course_id, number, quiz_type, lesson, point FROM Quizzes WHERE course_id = <course_id>
+      activate Database #LightGray
+      Database --> QuizRepository : Quizzes
+      deactivate Database
+      QuizRepository --> LogService : Quizzes
+      deactivate QuizRepository
 
-        User -> Frontend: .handleLogClick(courseId, logType)
-        Frontend -> Router: GET /api/logs/{courseId}
-        activate Router
+      ' Get quiz type specific data
+      alt logType == "choice"
+        LogService -> ChoiceQuizRepository: .GetQuestionsByCourse(courseId)
+        activate ChoiceQuizRepository #LightPink
+        ChoiceQuizRepository -> Database: SELECT cq.quiz_id, cq.question, cq.type FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>
+        activate Database #LightGray
+        Database --> ChoiceQuizRepository : Questions
+        deactivate Database
+        ChoiceQuizRepository --> LogService : Questions
+        deactivate ChoiceQuizRepository
 
-        Router -> Middleware: .Use(Middleware)
-        activate Middleware
-        Middleware -> Middleware : .Verify()
-        alt Unauthorized (401 Unauthorized)
-          Middleware -->> Router: 401 Unauthorized
-          Router -->> Frontend: 401 Unauthorized
-          Frontend -->> User: Show error "Please log in"
-        else Authorized
-          Middleware -->> Router: Route to Router
-          deactivate Middleware
-          Router -> LogController: .GetAllLogs(courseId,logType)
-          activate LogController
-          LogController -> LogService: .GetAllLogs(courseId,logType)
-          activate LogService
-          LogService -> LogRepository: .GetAllLogs(courseId,logType)
-          activate LogRepository
-          activate Database
-          LogRepository -> Database: SELECT * FROM quizzes WHERE course_id = @course_id
-          Database -->> LogRepository : quizzes, Error
-          LogRepository -> Database: SELECT * FROM choice_quizzes WHERE course_id = @course_id
-          Database -->> LogRepository : choice_quizzes, Error
-          LogRepository -> Database: SELECT * FROM choice_answers WHERE course_id = @course_id
-          Database -->> LogRepository : choice_answers, Error
-          LogRepository -> Database: SELECT * FROM ordering_quizzes WHERE course_id = @course_id
-          Database -->> LogRepository : ordering_quizzes, Error
-          LogRepository -> Database: SELECT * FROM ordering_answers WHERE course_id = @course_id
-          Database -->> LogRepository : ordering_answers, Error
-          LogRepository -> Database: SELECT * FROM missing_word_quizzes WHERE course_id = @course_id
-          Database -->> LogRepository : missing_word_quizzes, Error
-          LogRepository -> Database: SELECT * FROM quiz_histories WHERE course_id = @course_id
-          Database -->> LogRepository : quiz_histories, Error
-          LogRepository -> Database: SELECT * FROM choice_histories WHERE course_id = @course_id
-          Database -->> LogRepository : choice_histories, Error
-          LogRepository -> Database: SELECT * FROM ordering_histories WHERE course_id = @course_id
-          Database -->> LogRepository : ordering_histories, Error
-          LogRepository -> Database: SELECT * FROM missing_word_histories WHERE course_id = @course_id
-          Database -->> LogRepository : missing_word_histories, Error
+        LogService -> ChoiceQuizRepository: .GetAnswersByCourse(courseId)
+        activate ChoiceQuizRepository #LightPink
+        ChoiceQuizRepository -> Database: SELECT ca.choice_answer_id, ca.quiz_id, ca.answer, ca.result FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>
+        activate Database #LightGray
+        Database --> ChoiceQuizRepository : Answers
+        deactivate Database
+        ChoiceQuizRepository --> LogService : Answers
+        deactivate ChoiceQuizRepository
+      else logType == "ordering"
+        LogService -> OrderingQuizRepository: .GetQuestionsByCourse(courseId)
+        activate OrderingQuizRepository #LightPink
+        OrderingQuizRepository -> Database: SELECT oq.quiz_id, oq.question FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = oq.quiz_id WHERE q.course_id = <course_id>
+        activate Database #LightGray
+        Database --> OrderingQuizRepository : Questions
+        deactivate Database
+        OrderingQuizRepository --> LogService : Questions
+        deactivate OrderingQuizRepository
+
+        LogService -> OrderingQuizRepository: .GetAnswersByCourse(courseId)
+        activate OrderingQuizRepository #LightPink
+        OrderingQuizRepository -> Database: SELECT oa.ordering_answer_id, oa.quiz_id, oa.answer, oa.order FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = oa.quiz_id WHERE q.course_id = <course_id>
+        activate Database #LightGray
+        Database --> OrderingQuizRepository : Answers
+        deactivate Database
+        OrderingQuizRepository --> LogService : Answers
+        deactivate OrderingQuizRepository
+      else logType == "missing_word"
+        LogService -> MissingWordQuizRepository: .GetQuestionsByCourse(courseId)
+        activate MissingWordQuizRepository #LightPink
+        MissingWordQuizRepository -> Database: SELECT mwq.quiz_id, mwq.question, mwq.answer FROM Missing_Words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = mwq.quiz_id WHERE q.course_id = <course_id>
+        activate Database #LightGray
+        Database --> MissingWordQuizRepository : Questions
+        deactivate Database
+        MissingWordQuizRepository --> LogService : Questions
+        deactivate MissingWordQuizRepository
+      end
+
+      ' Get history data
+      LogService -> QuizHistoryRepository: .GetHistoriesByCourse(courseId)
+      activate QuizHistoryRepository #LightPink
+      QuizHistoryRepository -> Database: SELECT qh.quiz_history_id, qh.user_id, qh.quiz_id, qh.quiz_type, qh.note, qh.status FROM Quiz_Histories qh JOIN Quizzes q ON qh.quiz_id = q.quiz_id WHERE q.course_id = <course_id>
+      activate Database #LightGray
+      Database --> QuizHistoryRepository : Histories
+      deactivate Database
+
+      loop for each quiz history
+        alt history.quiz_type == "choice"
+          QuizHistoryRepository -> ChoiceHistoryRepository: .GetHistoriesByQuiz(quiz_history_id)
+          activate ChoiceHistoryRepository #LightPink
+          ChoiceHistoryRepository -> Database: SELECT ch.choice_history_id, ch.quiz_history_id, ch.answer, ch.result FROM Choice_Histories ch WHERE ch.quiz_history_id = <quiz_history_id>
+          activate Database #LightGray
+          Database --> ChoiceHistoryRepository : ChoiceHistories
           deactivate Database
-          LogRepository -->> LogService : Logs, Error
-          deactivate LogRepository
-          alt Error != Null
-            LogService -->> LogController : Logs, Error
-            LogController -->> Router : 500 Internal Server Error
-            Router -->> Frontend : 500 Internal Server Error
-            Frontend -->> User : Show error "Failed to fetch logs"
-          else Logs == Null
-            LogService -->> LogController : Logs, Error
-            LogController -->> Router : 404 Not Found
-            Router -->> Frontend : 404 Not Found
-            Frontend -->> User : Show message "Log not found"
-          else
-            LogService -> LogService : Calculate statistics
-            LogService -->> LogController : Logs
-            LogController -->> Router : 200 OK
-            Router -->> Frontend : 200 OK
-            Frontend -->> User : Show logs list
-          end
-          deactivate LogService
+          ChoiceHistoryRepository --> QuizHistoryRepository : ChoiceHistories
+          deactivate ChoiceHistoryRepository
+        else history.quiz_type == "ordering"
+          QuizHistoryRepository -> OrderingHistoryRepository: .GetHistoriesByQuiz(quiz_history_id)
+          activate OrderingHistoryRepository #LightPink
+          OrderingHistoryRepository -> Database: SELECT oh.ordering_history_id, oh.quiz_history_id, oh.answer, oh.result, oh.order FROM Ordering_Histories oh WHERE oh.quiz_history_id = <quiz_history_id>
+          activate Database #LightGray
+          Database --> OrderingHistoryRepository : OrderingHistories
+          deactivate Database
+          OrderingHistoryRepository --> QuizHistoryRepository : OrderingHistories
+          deactivate OrderingHistoryRepository
+        else history.quiz_type == "missing_word"
+          QuizHistoryRepository -> MissingWordHistoryRepository: .GetHistoriesByQuiz(quiz_history_id)
+          activate MissingWordHistoryRepository #LightPink
+          MissingWordHistoryRepository -> Database: SELECT mwh.missing_words_history_id, mwh.quiz_history_id, mwh.answer, mwh.result FROM Missing_Words_Histories mwh WHERE mwh.quiz_history_id = <quiz_history_id>
+          activate Database #LightGray
+          Database --> MissingWordHistoryRepository : MissingWordHistories
+          deactivate Database
+          MissingWordHistoryRepository --> QuizHistoryRepository : MissingWordHistories
+          deactivate MissingWordHistoryRepository
         end
       end
+
+      QuizHistoryRepository --> LogService : FullHistories
+      deactivate QuizHistoryRepository
+
+      ' Calculate statistics
+      LogService -> LogService: Calculate statistics
+      LogService --> LogController : AnalysisResults
+      deactivate LogService
+      LogController --> Router : 200 OK
+      deactivate LogController
+      Router --> Frontend : 200 OK
+      deactivate Router
+      Frontend --> User : Show analysis dashboard
     end
   end
 end
+
+deactivate Frontend
 @enduml
