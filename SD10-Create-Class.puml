@@ -43,7 +43,7 @@ else validInput (4a.1)
         deactivate Service
         Controller -> Router: successResponse(201, classRecord)
         Router -> FE: successResponse(201, classRecord)
-        FE -> User: displayMessage("สร้าง class สำเร็จ")
+        FE -> User: displayMessage("Classroom created.")
     else insertFailed (6b.1)
         Repository -> Service: returnError("ไม่สามารถสร้าง class ได้")
         deactivate Repository

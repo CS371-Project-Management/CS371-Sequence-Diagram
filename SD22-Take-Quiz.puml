@@ -35,7 +35,7 @@ ClassCtrl -> ClassServ: getJoinedClasses(userID)
 activate ClassServ
 ClassServ -> ClassRepo: selectJoinedClasses(userID)
 activate ClassRepo
-ClassRepo -> DB: SELECT id, name, description FROM classes WHERE user_id = ?
+ClassRepo -> DB: SELECT (c.class_id, c.title, c.description) FROM Classes c INNER JOIN User_Classes uc ON c.class_id = uc.class_id WHERE uc.user_id = <user_id>
 activate DB
 DB --> ClassRepo: [classList]
 deactivate DB
@@ -68,7 +68,7 @@ CourseCtrl -> CourseServ: getCourses(classID)
 activate CourseServ
 CourseServ -> CourseRepo: selectCoursesByClass(classID)
 activate CourseRepo
-CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
+CourseRepo -> DB: SELECT  c.course_id, c.title, c.description, c.difficulty_level, ( SELECT COUNT(DISTINCT q.quiz_id) FROM Quizzes q WHERE q.course_id = c.course_id ) AS total_quizzes, ( SELECT COUNT(DISTINCT qh.quiz_id )
 activate DB
 DB --> CourseRepo: [courseList]
 deactivate DB
@@ -103,37 +103,37 @@ QuizServ -> QuizRepo: selectQuizzesByCourse(courseID)
 activate QuizRepo
 
 ' ดึงข้อมูล quiz หลัก (7.1)
-QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+QuizRepo -> DB: SELECT quiz_id, course_id, number, quiz_type, lesson, point FROM Quizzes WHERE course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [quizBaseList]
 deactivate DB
 
 ' ดึงข้อมูล choice_quizzes (7.2)
-QuizRepo -> DB: SELECT quiz_id, some_field FROM choice_quizzes WHERE course_id = ?
+QuizRepo -> DB: SELECT cq.quiz_id, cq.question, cq.type FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>
 activate DB
 DB --> QuizRepo: [choiceQuizzes]
 deactivate DB
 
 ' ดึงข้อมูล choice_answers (7.3)
-QuizRepo -> DB: SELECT choice_quiz_id, answer_text FROM choice_answers WHERE course_id = ?
+QuizRepo -> DB: SELECT ca.choice_answer_id, ca.quiz_id, ca.answer, ca.result FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>
 activate DB
 DB --> QuizRepo: [choiceAnswers]
 deactivate DB
 
 ' ดึงข้อมูล ordering_quizzes (7.4)
-QuizRepo -> DB: SELECT quiz_id, some_field FROM ordering_quizzes WHERE course_id = ?
+QuizRepo -> DB: SELECT oq.quiz_id, oq.question FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>
 activate DB
 DB --> QuizRepo: [orderingQuizzes]
 deactivate DB
 
 ' ดึงข้อมูล ordering_answers (7.5)
-QuizRepo -> DB: SELECT ordering_quiz_id, answer_sequence FROM ordering_answers WHERE course_id = ?
+QuizRepo -> DB: SELECT oa.ordering_answer_id, ca.quiz_id, ca.answer, ca.order FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>
 activate DB
 DB --> QuizRepo: [orderingAnswers]
 deactivate DB
 
 ' ดึงข้อมูล missing_words_quizzes (7.6)
-QuizRepo -> DB: SELECT quiz_id, some_field FROM missing_words_quizzes WHERE course_id = ?
+QuizRepo -> DB: SELECT mwq.quiz_id, mwq.question, mqw.answer FROM Missing_Words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>
 activate DB
 DB --> QuizRepo: [missingWordsQuizzes]
 deactivate DB
@@ -169,25 +169,25 @@ QuizServ -> QuizRepo: selectQuizHistory(quizID, userID)
 activate QuizRepo
 
 ' ดึงข้อมูล quiz_histories (10.1)
-QuizRepo -> DB: SELECT id, user_id, quiz_id, note FROM quiz_histories WHERE quiz_id = ? AND user_id = ?
+QuizRepo -> DB: SELECT qh.* FROM Quiz_Histories qh JOIN Quizzes q ON qh.quiz_id = q.quiz_id JOIN Courses c ON q.course_id = c.course_id
 activate DB
 DB --> QuizRepo: [quizHistories]
 deactivate DB
 
 ' ดึงข้อมูล choice_histories (10.2a.1)
-QuizRepo -> DB: SELECT history_id, selected_choice FROM choice_histories WHERE quiz_id = ? AND user_id = ?
+QuizRepo -> DB: SELECT ch.choice_history_id, ch.quiz_history_id, ch.answer, ch.result FROM Choice_Histories ch JOIN Quiz_Histories qh ON qh.quiz_history_id = ch.quiz_history_id WHERE ch.quiz_id = <quiz_id>
 activate DB
 DB --> QuizRepo: [choiceHistories]
 deactivate DB
 
 ' ดึงข้อมูล ordering_histories (10.2b.1)
-QuizRepo -> DB: SELECT history_id, answer_sequence FROM ordering_histories WHERE quiz_id = ? AND user_id = ?
+QuizRepo -> DB: SELECT oh.ordering_history_id, oh.quiz_history_id, oh.answer, oh.result, oh.order FROM Ordering_Histories oh JOIN Quiz_Histories qh ON qh.quiz_history_id = oh.quiz_history_id WHERE ch.quiz_id = <quiz_id>
 activate DB
 DB --> QuizRepo: [orderingHistories]
 deactivate DB
 
 ' ดึงข้อมูล missing_words_histories (10.2c.1)
-QuizRepo -> DB: SELECT history_id, missing_word FROM missing_words_histories WHERE quiz_id = ? AND user_id = ?
+QuizRepo -> DB: SELECT mwh.missing_words_history_id, mwh.quiz_history_id, mwh.answer, mwh.result FROM Missing_Words_Histories mwh JOIN Quiz_Histories qh ON qh.quiz_history_id =mwh.quiz_history_id WHERE ch.quiz_id = <quiz_id>
 activate DB
 DB --> QuizRepo: [missingWordsHistories]
 deactivate DB
@@ -202,7 +202,7 @@ alt ไม่พบประวัติ
 else พบประวัติ
      QuizCtrl -> Router: successResponse(200, quizHistory)
      Router --> FE: successResponse(200, quizHistory)
-     FE -> User: แสดง quiz พร้อมประวัติ
+     FE -> User: แสดงผลเนื้อหาและแบบทดสอบพร้อมประวัติการตอบสำหรับ quiz ที่ผู้ใช้เลือก
 end
 deactivate QuizCtrl
 deactivate Router
@@ -218,55 +218,117 @@ deactivate MW
 activate QuizCtrl
 QuizCtrl -> QuizServ: saveQuizAnswers(answersData, userID, quizID)
 activate QuizServ
+
 alt ข้อมูลไม่ครบถ้วน
-     QuizServ -> QuizCtrl: returnError("ข้อมูลไม่ครบถ้วน")
-     QuizCtrl -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
-     Router --> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
-     FE -> User: แสดงข้อความ "ข้อมูลไม่ครบถ้วน"
+    QuizServ -> QuizCtrl: returnError("ข้อมูลไม่ครบถ้วน")
+    QuizCtrl -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
+    Router --> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
+    FE -> User: แสดงข้อความ "Require all field"
 else ข้อมูลครบถ้วน
-     ' บันทึกคำตอบ (แบ่งตามประเภท quiz)
-     QuizServ -> QuizRepo: insertQuizHistory(answersData, userID, quizID)
-     activate QuizRepo
-     QuizRepo -> DB: INSERT INTO quiz_histories (id, user_id, quiz_id, note) VALUES (?,?,?,?)
-     activate DB
-     DB --> QuizRepo: success
-     deactivate DB
+    ' เลือก branch ตามประเภทของ Quiz (mutually exclusive)
+    alt Quiz ประเภท Single Choice
+         '-------------------------------------------
+         ' UC 22 : 17a.1.1 - INSERT quiz history สำหรับ Single Choice
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertQuizHistory_Single(answersData, userID, quizID)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Quiz_Histories (quiz_history_id, quiz_id, user_id, point, quiz_type, note, status) VALUES (<quiz_history_id>, <quiz_id>, <user_id>, <point>, 'single', <note>, <status>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17a.1.1)
 
-     ' ตัวอย่าง สำหรับ single / multiple choice (17a.1, 17b.1)
-     QuizRepo -> DB: INSERT INTO choice_histories (history_id, selected_choice) VALUES (?,?)
-     activate DB
-     DB --> QuizRepo: success
-     deactivate DB
+         '-------------------------------------------
+         ' UC 22 : 17a.1.2 - INSERT choice history สำหรับ Single Choice
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertChoiceHistory_Single(answersData)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Choice_Histories (choice_history_id, quiz_history_id, answer, result) VALUES (<choice_history_id>, <quiz_history_id>, <answer>, <result>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17a.1.2)
+    else Quiz ประเภท Multiple Choice
+         '-------------------------------------------
+         ' UC 22 : 17b.1.1 - INSERT quiz history สำหรับ Multiple Choice
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertQuizHistory_Multiple(answersData, userID, quizID)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Quiz_Histories (quiz_history_id, quiz_id, user_id, point, quiz_type, note, status) VALUES (<quiz_history_id>, <quiz_id>, <user_id>, <point>, 'multiple', <note>, <status>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17b.1.1)
 
-     ' หากเป็นแบบ ordering (17c.1)
-     QuizRepo -> DB: INSERT INTO ordering_histories (history_id, answer_sequence) VALUES (?,?)
-     activate DB
-     DB --> QuizRepo: success
-     deactivate DB
+         '-------------------------------------------
+         ' UC 22 : 17b.1.2 - INSERT choice history สำหรับ Multiple Choice
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertChoiceHistory_Multiple(answersData)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Choice_Histories (choice_history_id, quiz_history_id, answer, result) VALUES (<choice_history_id>, <quiz_history_id>, <answer>, <result>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17b.1.2)
+    else Quiz ประเภท Ordering
+         '-------------------------------------------
+         ' UC 22 : 17c.1.1 - INSERT quiz history สำหรับ Ordering
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertQuizHistory_Ordering(answersData, userID, quizID)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Quiz_Histories (quiz_history_id, quiz_id, user_id, point, quiz_type, note, status) VALUES (<quiz_history_id>, <quiz_id>, <user_id>, <point>, 'ordering', <note>, <status>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17c.1.1)
 
-     ' หากเป็นแบบ missing words (17d.1)
-     QuizRepo -> DB: INSERT INTO missing_words_histories (history_id, missing_word) VALUES (?,?)
-     activate DB
-     DB --> QuizRepo: success
-     deactivate DB
+         '-------------------------------------------
+         ' UC 22 : 17c.1.2 - INSERT ordering history สำหรับ Ordering
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertOrderingHistory(answersData)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Ordering_Histories (ordering_history_id, quiz_history_id, answer, order, result) VALUES (<ordering_history_id>, <quiz_history_id>, <answer>, <order>, <result>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17c.1.2)
+    else Quiz ประเภท Missing Words
+         '-------------------------------------------
+         ' UC 22 : 17d.1.1 - INSERT quiz history สำหรับ Missing Words
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertQuizHistory_Missing(answersData, userID, quizID)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Quiz_Histories (quiz_history_id, quiz_id, user_id, point, quiz_type, note, status) VALUES (<quiz_history_id>, <quiz_id>, <user_id>, <point>, 'missing', <note>, <status>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17d.1.1)
 
-     QuizRepo --> QuizServ: INSERT result
-     deactivate QuizRepo
+         '-------------------------------------------
+         ' UC 22 : 17d.1.2 - INSERT missing words history สำหรับ Missing Words
+         '-------------------------------------------
+         QuizServ -> QuizRepo: insertMissingWordsHistory(answersData)
+         activate QuizRepo
+         QuizRepo -> DB: INSERT INTO Missing_Words_Histories (missing_word_history_id, quiz_history_id, answer, result) VALUES (<missing_word_history_id>, <quiz_history_id>, <answer>, <result>);
+         activate DB
+         DB --> QuizRepo: success
+         deactivate DB
+         QuizRepo --> QuizServ: success (17d.1.2)
+    end
 
-     alt บันทึกคำตอบสำเร็จ
-          QuizServ --> QuizCtrl: success
-          QuizCtrl --> Router: successResponse(200, "บันทึกคำตอบสำเร็จ")
-          Router --> FE: successResponse(200, "บันทึกคำตอบสำเร็จ")
-          FE -> User: แสดงข้อความ "บันทึกคำตอบสำเร็จ"
-     else บันทึกคำตอบไม่สำเร็จ
-          QuizServ -> QuizCtrl: returnError("ไม่สามารถบันทึกคำตอบได้")
-          QuizCtrl -> Router: errorResponse(500, "บันทึกคำตอบไม่สำเร็จ")
-          Router --> FE: errorResponse(500, "บันทึกคำตอบไม่สำเร็จ")
-          FE -> User: แสดงข้อความ "บันทึกคำตอบไม่สำเร็จ"
-     end
+    alt บันทึกคำตอบสำเร็จ
+         QuizServ --> QuizCtrl: success
+         QuizCtrl --> Router: successResponse(200, "บันทึกคำตอบสำเร็จ")
+         Router --> FE: successResponse(200, "บันทึกคำตอบสำเร็จ")
+'         FE -> User: แสดงข้อความ "บันทึกคำตอบสำเร็จ"
+    else บันทึกคำตอบไม่สำเร็จ
+         QuizServ -> QuizCtrl: returnError("ไม่สามารถบันทึกคำตอบได้")
+         QuizCtrl -> Router: errorResponse(500, "ไม่สามารถบันทึกคำตอบได้")
+         Router --> FE: errorResponse(500, "ไม่สามารถบันทึกคำตอบได้")
+         FE -> User: แสดงข้อความ "Cannot save your answer"
+    end
 end
 deactivate QuizServ
 deactivate QuizCtrl
 deactivate Router
-
 @enduml

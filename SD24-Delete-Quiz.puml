@@ -1,5 +1,5 @@
 @startuml
-title Delete Quiz
+title Delete Quiz (UC24)
 
 actor "ผู้ใช้" as User
 participant "Frontend" as FE
@@ -35,6 +35,7 @@ ClassCtrl -> ClassServ: getAdminClasses(userID)
 activate ClassServ
 ClassServ -> ClassRepo: selectClassesByAdmin(userID)
 activate ClassRepo
+' UC 24: Class Query: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
 ClassRepo -> DB: SELECT class_id, user_id, invite_code, title, description, accessibility FROM Classes WHERE user_id = <user_id>;
 activate DB
 DB --> ClassRepo: [classList]
@@ -51,7 +52,7 @@ else Found
     ClassCtrl -> Router: successResponse(200, classList)
     Router --> FE: successResponse(200, classList)
     FE -> User: แสดงรายการ class
-
+end
 deactivate ClassCtrl
 deactivate Router
 
@@ -68,7 +69,8 @@ CourseCtrl -> CourseServ: getCourses(classID)
 activate CourseServ
 CourseServ -> CourseRepo: selectCoursesByClass(classID)
 activate CourseRepo
-CourseRepo -> DB: SELECT course_id, class_id, title, description,difficult_level, number FROM Courses WHERE class_id = <class_id>;
+' UC 24: Course Query: SELECT course_id, class_id, title, description, difficult_level, number FROM Courses WHERE class_id = <class_id>;
+CourseRepo -> DB: SELECT course_id, class_id, title, description, difficult_level, number FROM Courses WHERE class_id = <class_id>;
 activate DB
 DB --> CourseRepo: [courseList]
 deactivate DB
@@ -84,7 +86,7 @@ else Found
     CourseCtrl -> Router: successResponse(200, courseList)
     Router --> FE: successResponse(200, courseList)
     FE -> User: แสดงรายการ course
-
+end
 deactivate CourseCtrl
 deactivate Router
 
@@ -101,27 +103,33 @@ QuizCtrl -> QuizServ: getQuizzes(courseID)
 activate QuizServ
 QuizServ -> QuizRepo: selectQuizzesByCourse(courseID)
 activate QuizRepo
-QuizRepo -> DB: SELECT id, title, type FROM quizzes WHERE course_id = ?
+' UC 24: 7.1 - SELECT quiz_id, course_id, number, quiz_type, lesson, point FROM Quizzes WHERE course_id = <course_id>;
+QuizRepo -> DB: SELECT quiz_id, course_id, number, quiz_type, lesson, point FROM Quizzes WHERE course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [quizList]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM choice_quizzes WHERE course_id = ?
+' UC 24: 7.2 - SELECT cq.quiz_id, cq.question, cq.type FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+QuizRepo -> DB: SELECT cq.quiz_id, cq.question, cq.type FROM Choice_Quizzes cq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [choiceQuizzes]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM choice_answers WHERE course_id = ?
+' UC 24: 7.3 - SELECT ca.choice_answer_id, ca.quiz_id, ca.answer, ca.result FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
+QuizRepo -> DB: SELECT ca.choice_answer_id, ca.quiz_id, ca.answer, ca.result FROM Choice_Answers ca JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [choiceAnswers]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM ordering_quizzes WHERE course_id = ?
+' UC 24: 7.4 - SELECT oq.quiz_id, oq.question FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+QuizRepo -> DB: SELECT oq.quiz_id, oq.question FROM Ordering_Quizzes oq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [orderingQuizzes]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM ordering_answers WHERE course_id = ?
+' UC 24: 7.5 - SELECT oa.ordering_answer_id, ca.quiz_id, ca.answer, ca.order FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
+QuizRepo -> DB: SELECT oa.ordering_answer_id, ca.quiz_id, ca.answer, ca.order FROM Ordering_Answers oa JOIN Quizzes q ON q.quiz_id = ca.quiz_id WHERE q.course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [orderingAnswers]
 deactivate DB
-QuizRepo -> DB: SELECT id FROM missing_words_quizzes WHERE course_id = ?
+' UC 24: 7.6 - SELECT mwq.quiz_id, mwq.question, mqw.answer FROM Missing_Words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
+QuizRepo -> DB: SELECT mwq.quiz_id, mwq.question, mqw.answer FROM Missing_Words_Quizzes mwq JOIN Quizzes q ON q.quiz_id = cq.quiz_id WHERE q.course_id = <course_id>;
 activate DB
 DB --> QuizRepo: [missingWordsQuizzes]
 deactivate DB
@@ -137,7 +145,7 @@ else Found
     QuizCtrl -> Router: successResponse(200, quizData)
     Router --> FE: successResponse(200, quizData)
     FE -> User: แสดงรายการ quiz
-
+end
 deactivate QuizCtrl
 deactivate Router
 
@@ -154,43 +162,53 @@ QuizCtrl -> QuizServ: deleteQuiz(quizID)
 activate QuizServ
 QuizServ -> QuizRepo: deleteQuiz(quizID)
 activate QuizRepo
-QuizRepo -> DB: DELETE FROM quizzes WHERE id = ?
+' UC 24: 12.1 - DELETE FROM Quizzes WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Quizzes WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM choice_quizzes WHERE quiz_id = ?
+' UC 24: 12.2 - DELETE FROM Choice_Quizzes WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Choice_Quizzes WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM choice_answers WHERE quiz_id = ?
+' UC 24: 12.3 - DELETE FROM Choice_Answers WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Choice_Answers WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM ordering_quizzes WHERE quiz_id = ?
+' UC 24: 12.4 - DELETE FROM Ordering_Quizzes WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Ordering_Quizzes WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM ordering_answers WHERE quiz_id = ?
+' UC 24: 12.5 - DELETE FROM Ordering_Answers WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Ordering_Answers WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM missing_words_quizzes WHERE quiz_id = ?
+' UC 24: 12.6 - DELETE FROM Missing_Words_Quizzes WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Missing_Words_Quizzes WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM quiz_histories WHERE quiz_id = ?
+' UC 24: 12.7 - DELETE FROM Quiz_Histories WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Quiz_Histories WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM choice_histories WHERE quiz_id = ?
+' UC 24: 12.8 - DELETE FROM Choice_Histories WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Choice_Histories WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM ordering_histories WHERE quiz_id = ?
+' UC 24: 12.9 - DELETE FROM Ordering_Histories WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Ordering_Histories WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
-QuizRepo -> DB: DELETE FROM missing_words_histories WHERE quiz_id = ?
+' UC 24: 12.10 - DELETE FROM Missing_Words_Histories WHERE quiz_id = <quiz_id>;
+QuizRepo -> DB: DELETE FROM Missing_Words_Histories WHERE quiz_id = <quiz_id>;
 activate DB
 DB --> QuizRepo: success
 deactivate DB
@@ -199,20 +217,15 @@ alt Deletion Failed
     QuizServ -> QuizCtrl: returnError("ไม่สามารถลบ quiz ได้")
     QuizCtrl -> Router: errorResponse(500, "ไม่สามารถลบ quiz ได้")
     Router --> FE: errorResponse(500, "ไม่สามารถลบ quiz ได้")
-    FE -> User: แสดงข้อความ "ไม่สามารถลบ quiz ได้"
+    FE -> User: แสดงข้อความ "Failed to delete qiuz."
 else Deletion Successful
     QuizRepo --> QuizServ: success
     QuizServ --> QuizCtrl: success
     QuizCtrl -> Router: successResponse(200, "ลบ quiz สำเร็จ")
     Router --> FE: successResponse(200, "ลบ quiz สำเร็จ")
-    FE -> User: แสดงข้อความ "ลบ quiz สำเร็จ"
-end
-end
-end
 end
 deactivate QuizRepo
 deactivate QuizServ
 deactivate QuizCtrl
 deactivate Router
-
 @enduml
