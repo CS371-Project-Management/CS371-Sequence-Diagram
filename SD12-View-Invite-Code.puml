@@ -113,6 +113,7 @@ else Invite code not found (5a.1)
             deactivate Service
             Controller -> Router: errorResponse(500, "ไม่สามารถสร้าง invite code ได้")
             Router -> FE: errorResponse(500, "ไม่สามารถสร้าง invite code ได้")
+            FE -> User: displayError("Cannot generate invite code")
         end
     end
 end

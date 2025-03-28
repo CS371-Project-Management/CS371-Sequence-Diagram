@@ -80,6 +80,7 @@ else validData (7a.1)
         deactivate Service
         Controller -> Router: errorResponse(500, "Edit failed")
         Router -> FE: errorResponse(500, "Edit failed")
+        FE -> User : displayMessage("Failed to edit classroom.")
         deactivate Controller
         deactivate MW
         deactivate Router
@@ -90,7 +91,7 @@ else validData (7a.1)
         deactivate Service
         Controller -> Router: successResponse(200, "Edit class successful", updatedClass)
         Router -> FE: successResponse(200, "Edit class successful", updatedClass)
-        FE -> User: displayMessage("Edit class successful")
+        FE -> User: displayMessage("Classroom Edited.")
         deactivate Controller
         deactivate MW
         deactivate Router

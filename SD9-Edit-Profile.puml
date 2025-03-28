@@ -50,7 +50,8 @@ activate Controller
 Controller -> Controller: validateUpdatedData()
 alt invalidData
     Controller -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
-    Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    Router -> User: แจ้งเตือนไปที่ user "Please fill in your information properly."
+    Router -> FE: errorResponse(400, "Please fill in your information properly.")
     deactivate Router
 else validData
     Controller -> Service: editUserProfile(updatedData, currentPassword)
@@ -71,6 +72,7 @@ else validData
         deactivate Service
         Controller -> Router: errorResponse(401, "รหัสผ่านไม่ถูกต้อง")
         Router -> FE: errorResponse(401, "รหัสผ่านไม่ถูกต้อง")
+        FE -> User : แจ้งเตือน "Wrong password."
         deactivate Controller
         deactivate MW
         deactivate Router
