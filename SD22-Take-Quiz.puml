@@ -202,7 +202,7 @@ alt ไม่พบประวัติ
 else พบประวัติ
      QuizCtrl -> Router: successResponse(200, quizHistory)
      Router --> FE: successResponse(200, quizHistory)
-     FE -> User: แสดง quiz พร้อมประวัติ
+     FE -> User: แสดงผลเนื้อหาและแบบทดสอบพร้อมประวัติการตอบสำหรับ quiz ที่ผู้ใช้เลือก
 end
 deactivate QuizCtrl
 deactivate Router
@@ -223,7 +223,7 @@ alt ข้อมูลไม่ครบถ้วน
     QuizServ -> QuizCtrl: returnError("ข้อมูลไม่ครบถ้วน")
     QuizCtrl -> Router: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
     Router --> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วน")
-    FE -> User: แสดงข้อความ "ข้อมูลไม่ครบถ้วน"
+    FE -> User: แสดงข้อความ "Require all field"
 else ข้อมูลครบถ้วน
     ' เลือก branch ตามประเภทของ Quiz (mutually exclusive)
     alt Quiz ประเภท Single Choice
@@ -320,12 +320,12 @@ else ข้อมูลครบถ้วน
          QuizServ --> QuizCtrl: success
          QuizCtrl --> Router: successResponse(200, "บันทึกคำตอบสำเร็จ")
          Router --> FE: successResponse(200, "บันทึกคำตอบสำเร็จ")
-         FE -> User: แสดงข้อความ "บันทึกคำตอบสำเร็จ"
+'         FE -> User: แสดงข้อความ "บันทึกคำตอบสำเร็จ"
     else บันทึกคำตอบไม่สำเร็จ
          QuizServ -> QuizCtrl: returnError("ไม่สามารถบันทึกคำตอบได้")
          QuizCtrl -> Router: errorResponse(500, "ไม่สามารถบันทึกคำตอบได้")
          Router --> FE: errorResponse(500, "ไม่สามารถบันทึกคำตอบได้")
-         FE -> User: แสดงข้อความ "ไม่สามารถบันทึกคำตอบได้"
+         FE -> User: แสดงข้อความ "Cannot save your answer"
     end
 end
 deactivate QuizServ

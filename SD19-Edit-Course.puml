@@ -96,6 +96,7 @@ Controller -> Controller: validateUpdatedData(updatedData)
 alt Data invalid (10b.1)
     Controller -> Router: returnError("ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
     Router -> FE: errorResponse(400, "ข้อมูลไม่ครบถ้วนหรือข้อมูลไม่ถูกต้อง")
+    FE -> User: displat("please fill in your information properly")
     deactivate Controller
     deactivate Router
 else Data valid (10a.1)
@@ -114,6 +115,7 @@ else Data valid (10a.1)
         deactivate Service
         Controller -> Router: errorResponse(500, "Course update failed")
         Router -> FE: errorResponse(500, "Course update failed")
+        FE -> User: display(Failed to edit course.)
     else Update success (12a.1)
         Repository --> Service: updatedCourseRecord
         deactivate Repository
@@ -121,7 +123,7 @@ else Data valid (10a.1)
         deactivate Service
         Controller -> Router: successResponse(200, "Course updated successfully", updatedCourseRecord)
         Router -> FE: successResponse(200, "Course updated successfully", updatedCourseRecord)
-        FE -> User: displayMessage("Course updated successfully")
+        FE -> User: displayMessage("Course Edited.")
     end
 end
 deactivate Controller

@@ -217,13 +217,12 @@ alt Deletion Failed
     QuizServ -> QuizCtrl: returnError("ไม่สามารถลบ quiz ได้")
     QuizCtrl -> Router: errorResponse(500, "ไม่สามารถลบ quiz ได้")
     Router --> FE: errorResponse(500, "ไม่สามารถลบ quiz ได้")
-    FE -> User: แสดงข้อความ "ไม่สามารถลบ quiz ได้"
+    FE -> User: แสดงข้อความ "Failed to delete qiuz."
 else Deletion Successful
     QuizRepo --> QuizServ: success
     QuizServ --> QuizCtrl: success
     QuizCtrl -> Router: successResponse(200, "ลบ quiz สำเร็จ")
     Router --> FE: successResponse(200, "ลบ quiz สำเร็จ")
-    FE -> User: แสดงข้อความ "ลบ quiz สำเร็จ"
 end
 deactivate QuizRepo
 deactivate QuizServ

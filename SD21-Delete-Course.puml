@@ -171,11 +171,10 @@ deactivate CourseServ
 alt ลบ course สำเร็จ
     CourseCtrl --> Router: successResponse(200, "ลบ course สำเร็จ")  <<Step 10a.2>>
     Router --> FE: successResponse(200, "ลบ course สำเร็จ")
-    FE -> User: displayMessage("ลบ course สำเร็จ")
 else ลบ course ไม่สำเร็จ
     CourseCtrl --> Router: errorResponse(500, "ไม่สามารถลบ course ได้")  <<Step 10b.2>>
     Router --> FE: errorResponse(500, "ไม่สามารถลบ course ได้")
-    FE -> User: displayMessage("ไม่สามารถลบ course ได้")
+    FE -> User: displayMessage("Failed to delete course.")
 end
 deactivate CourseCtrl
 deactivate Router

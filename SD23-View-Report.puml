@@ -18,7 +18,7 @@ participant "Course Repository" as CourseRepo
 
 participant "Database" as DB
 
-'================= Phase 1: ดึงข้อมูล Class ที่ผู้ใช้เข้าร่วม =================
+'==================== Phase 1: ดึงข้อมูล Class ====================
 FE -> Router: GET /api/classes?joined=true
 activate Router
 Router -> MW: validateSession()
@@ -30,29 +30,27 @@ ClassCtrl -> ClassServ: getJoinedClasses(userID)
 activate ClassServ
 ClassServ -> ClassRepo: selectJoinedClasses(userID)
 activate ClassRepo
-ClassRepo -> DB: SELECT (c.class_id, c.title, c.description) FROM Classes c INNER JOIN User_Classes uc ON c.class_id = uc.class_id WHERE uc.user_id = <user_id>
+ClassRepo -> DB: SELECT id, name, description FROM classes WHERE user_id = ?
 activate DB
 DB --> ClassRepo: [classList]
 deactivate DB
-
 alt ไม่พบข้อมูล class
-   ClassRepo --> ClassServ: []
-       ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
-       ClassCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล class")
-       Router --> FE: errorResponse(404, "ไม่พบข้อมูล class")
-       FE -> User: แสดงข้อความ "ไม่พบข้อมูล class"
+    ClassRepo --> ClassServ: []
+    ClassServ -> ClassCtrl: returnError("ไม่พบข้อมูล class")
+    ClassCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล class")
+    Router --> FE: errorResponse(404, "ไม่พบข้อมูล class")
+    FE -> User: แสดงข้อความ "ไม่พบข้อมูล class"
 else พบข้อมูล class
     ClassRepo --> ClassServ: [classList]
-    deactivate ClassRepo
-        ClassServ --> ClassCtrl: [classList]
-        ClassCtrl --> Router: successResponse(200, classList)
-        deactivate ClassServ
-        Router --> FE: successResponse(200, classList)
-        FE -> User: แสดงรายการ class
+    ClassServ --> ClassCtrl: [classList]
+    ClassCtrl --> Router: successResponse(200, classList)
+    Router --> FE: successResponse(200, classList)
+    FE -> User: แสดงรายการ class
+end
 deactivate ClassCtrl
 deactivate Router
 
-'================= Phase 2: ดึงข้อมูล Course ภายใน Class ที่เลือก =================
+'==================== Phase 2: ดึงข้อมูล Course ====================
 User -> FE: เลือก class ที่ต้องการ
 FE -> Router: GET /api/courses?classID={classID}
 activate Router
@@ -65,33 +63,33 @@ CourseCtrl -> CourseServ: getCourses(classID)
 activate CourseServ
 CourseServ -> CourseRepo: selectCoursesByClass(classID)
 activate CourseRepo
-CourseRepo -> DB: SELECT c.course_id,c.title,c.description,c.difficulty_level,(SELECT COUNT(DISTINCT q.quiz_id) FROM Quizzes q WHERE q.course_id = c.course_id ) AS total_quizzes,( SELECT COUNT(DISTINCT qh.quiz_id) FROM Quiz_Histories qh JOIN Quizzes q ON qh.quiz_id = q.quiz_id WHERE q.course_id = c.course_id AND qh.user_id = <user_id> ) AS completed_quizzes FROM Courses c WHERE c.class_id = <class_id>;
+CourseRepo -> DB: SELECT id, title, description FROM courses WHERE class_id = ?
 activate DB
 DB --> CourseRepo: [courseList]
 deactivate DB
 alt ไม่พบข้อมูล course
-    CourseRepo --> CourseServ: []
-        CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
-        CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
-        Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
-        FE -> User: แสดงข้อความ "ไม่พบข้อมูล course"
+     CourseRepo --> CourseServ: []
+     CourseServ -> CourseCtrl: returnError("ไม่พบข้อมูล course")
+     CourseCtrl -> Router: errorResponse(404, "ไม่พบข้อมูล course")
+     Router --> FE: errorResponse(404, "ไม่พบข้อมูล course")
+     FE -> User: แสดงข้อความ "ไม่พบข้อมูล course"
 else พบข้อมูล course
-CourseRepo --> CourseServ: [courseList]
-    CourseServ --> CourseCtrl: [courseList]
-    deactivate ClassCtrl
-    CourseCtrl --> Router: successResponse(200, courseList)
-    Router --> FE: successResponse(200, courseList)
-    FE -> User: แสดงรายการ course
-
+     CourseRepo --> CourseServ: [courseList]
+     CourseServ --> CourseCtrl: [courseList]
+     CourseCtrl --> Router: successResponse(200, courseList)
+     Router --> FE: successResponse(200, courseList)
+     FE -> User: แสดงรายการ course
+end
 deactivate CourseCtrl
 deactivate Router
 
+
 '================= Phase 3: ยืนยันส่งคำตอบ =================
-User -> FE: กดปุ่มยืนยันการส่งคำตอบ
-FE -> User: ยืนยันการส่งคำตอบเรียบร้อย
+User -> FE: เลือก course ที่ต้องการและกดปุ่มยืนยันการส่งคำตอบ
+FE -> User: display("Are you sure to submit all quizzes")
 
 '================= Phase 4: ดูผลการทำแบบทดสอบ (View Report) =================
-User -> FE: กดปุ่ม "ดูผลการทำแบบทดสอบ"
+User -> FE: กดปุ่ม "Yes"
 FE -> Router: GET /api/quizReport?courseID={courseID}
 activate Router
 Router -> MW: validateRequest()
@@ -188,10 +186,6 @@ deactivate CourseRepo
 
 CourseServ -> CourseServ: check completeness of quiz histories
 alt ประวัติไม่ครบ
-    CourseServ --> CourseCtrl: returnError("ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
-    CourseCtrl --> Router: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
-    Router --> FE: errorResponse(400, "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ")
-    FE -> User: แสดงข้อความ "ต้องทำแบบทดสอบให้ครบทุกข้อก่อนส่งคำตอบ"
 else
     CourseServ -> CourseServ: calculate report result
     alt คำนวณผลสำเร็จ
